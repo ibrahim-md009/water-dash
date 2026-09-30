@@ -1,0 +1,79 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // المسؤول = وجود وثيقة admins/{uid} (تُنشأ يدويًا من Firebase Console)
+    function isAdmin() {
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    match /admins/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false;
+    }
+
+    // ───────── availability ─────────
+    // القراءة عامة (الموقع الأساسي يعرض الدقائق المتاحة).
+    // الزبون يستطيع فقط خصم دقائق (لا يزيدها ولا يغيّر الإجمالي) — وتتم العملية داخل Transaction.
+    match /availability/{id} {
+      allow read: if true;
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || isCustomerDeduction();
+
+      function isCustomerDeduction() {
+        let before = resource.data;
+        let after = request.resource.data;
+        return after.diff(before).affectedKeys()
+                 .hasOnly(['availableMinutes', 'reservedMinutes', 'status', 'updatedAt'])
+          && after.availableMinutes is int
+          && after.availableMinutes >= 0
+          && after.availableMinutes < before.availableMinutes
+          && after.reservedMinutes ==
+               before.reservedMinutes + (before.availableMinutes - after.availableMinutes);
+      }
+    }
+
+    // ───────── reservations ─────────
+    // بيانات الزبائن (الهاتف، الوصل) للمسؤول فقط.
+    // الزبون يستطيع إنشاء طلب pending فقط، بشرط أن يُخصم نفس العدد من الدقائق في نفس العملية.
+    match /reservations/{id} {
+      allow read, update, delete: if isAdmin();
+      allow create: if isAdmin() || isValidCustomerReservation();
+
+      function isValidCustomerReservation() {
+        let d = request.resource.data;
+        let settings = get(/databases/$(database)/documents/settings/general).data;
+        let availPath = /databases/$(database)/documents/availability/$(d.availabilityId);
+        return d.keys().hasOnly(['name', 'phone', 'minutes', 'price', 'minutesPerCup',
+                                 'pricePerCup', 'availabilityId', 'dateText', 'notes',
+                                 'receiptUrl', 'status', 'createdAt'])
+          && d.keys().hasAll(['name', 'phone', 'minutes', 'price', 'availabilityId',
+                              'status', 'createdAt'])
+          && d.status == 'pending'
+          && d.createdAt == request.time
+          && d.name is string && d.name.size() > 0 && d.name.size() <= 100
+          && d.phone is string && d.phone.size() >= 5 && d.phone.size() <= 20
+          && d.minutes is int && d.minutes > 0
+          && d.price is number
+          && math.abs(d.price - (d.minutes * settings.pricePerCup / settings.minutesPerCup)) < 0.01
+          && getAfter(availPath).data.availableMinutes ==
+               get(availPath).data.availableMinutes - d.minutes;
+      }
+    }
+
+    // ───────── paymentMethods ─────────
+    match /paymentMethods/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ───────── settings ─────────
+    // settings/general عامة القراءة (الأسعار)، أما counters فللمسؤول فقط.
+    match /settings/{id} {
+      allow read: if id == 'general' || isAdmin();
+      allow write: if isAdmin();
+    }
+  }
+}
