@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import EmptyState from './EmptyState';
 import LoadingState from './LoadingState';
 import ReservationCard from './ReservationCard';
 import ReservationDetails from './ReservationDetails';
 import ConfirmModal from './ConfirmModal';
+import EditReservationModal from './EditReservationModal';
 import { useData } from '../context/DataContext';
 import { useToast } from '../context/ToastContext';
 import { toArabicError } from '../lib/errors';
@@ -23,6 +24,12 @@ export default function ReservationsBoard({ status, timeLabel, timeField, getAct
   const [selectedId, setSelectedId] = useState(null);
   const [pending, setPending] = useState(null); // { action, reservation }
   const [busyKey, setBusyKey] = useState(null);
+  const [editing, setEditing] = useState(false);
+
+  // دوال ثابتة حتى لا تتغير النوافذ المفتوحة مع كل تحديث لحظي للبيانات
+  const closeDetails = useCallback(() => setSelectedId(null), []);
+  const openEdit = useCallback(() => setEditing(true), []);
+  const closeEdit = useCallback(() => setEditing(false), []);
 
   const list = useMemo(() => {
     const at = (r) => (toDate(r[timeField]) || toDate(r.createdAt))?.getTime() || 0;
@@ -85,8 +92,11 @@ export default function ReservationsBoard({ status, timeLabel, timeField, getAct
         actions={actions}
         busyKey={pending ? null : busyKey}
         onAction={onAction}
-        onClose={() => setSelectedId(null)}
+        onEdit={openEdit}
+        onClose={closeDetails}
       />
+
+      {editing && selected && <EditReservationModal key={selected.id} reservation={selected} onClose={closeEdit} />}
 
       <ConfirmModal
         open={!!pending}

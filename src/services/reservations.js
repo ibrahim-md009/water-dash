@@ -198,3 +198,31 @@ export const rejectReservation = (id) =>
 
 export const cancelReservation = (id) =>
   releaseReservation(id, { from: S.CONFIRMED, to: S.CANCELLED, timeField: 'cancelledAt' });
+
+// ─────────────────────────────────────────────────────────────
+// تعديل بيانات الزبون (الاسم، الهاتف، الملاحظات) للحجوزات غير المنتهية.
+// الدقائق والسعر والوصل لا تُعدَّل من هنا حتى لا تختل حسابات الدفعات.
+// ─────────────────────────────────────────────────────────────
+export async function updateReservationDetails(id, { name, phone, notes }) {
+  const cleanName = (name || '').trim();
+  const cleanPhone = (phone || '').trim();
+  if (!cleanName) throw new AppError('الاسم مطلوب.');
+  if (cleanName.length > 100) throw new AppError('الاسم طويل جدًا.');
+  if (cleanPhone.length < 5 || cleanPhone.length > 20) {
+    throw new AppError('أدخل رقم هاتف صحيحًا (من 5 إلى 20 خانة).');
+  }
+
+  const rRef = reservationRef(id);
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(rRef);
+    if (!snap.exists()) throw new AppError('هذا الحجز غير موجود.');
+    const status = snap.data().status;
+    if (status !== S.PENDING && status !== S.CONFIRMED) throw new AppError(STALE);
+    tx.update(rRef, {
+      name: cleanName,
+      phone: cleanPhone,
+      notes: (notes || '').trim(),
+      updatedAt: serverTimestamp(),
+    });
+  });
+}

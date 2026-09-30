@@ -1,16 +1,19 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Droplets, Loader2, Plus } from 'lucide-react';
 import AvailabilityCard from '../components/AvailabilityCard';
+import ConfirmModal from '../components/ConfirmModal';
+import EditAvailabilityModal from '../components/EditAvailabilityModal';
 import EmptyState from '../components/EmptyState';
 import LoadingState from '../components/LoadingState';
 import { useData } from '../context/DataContext';
 import { useToast } from '../context/ToastContext';
-import { addAvailability } from '../services/availability';
+import { addAvailability, deleteAvailability } from '../services/availability';
 import { toArabicError } from '../lib/errors';
 import { calcCups, calcPrice } from '../lib/pricing';
-import { formatMoney, formatNumber } from '../lib/format';
+import { formatAvailabilityNumber, formatMoney, formatNumber } from '../lib/format';
 
 const INITIAL = { minutes: '', dateText: '', notes: '' };
+const RECENT_LIMIT = 12;
 
 export default function AddMinutes() {
   const { availability, settings, loading } = useData();
@@ -18,6 +21,14 @@ export default function AddMinutes() {
   const [form, setForm] = useState(INITIAL);
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
+  const [showAll, setShowAll] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [deleting, setDeleting] = useState(null); // الدفعة المطلوب حذفها
+  const [deleteBusy, setDeleteBusy] = useState(false);
+
+  // دوال ثابتة حتى لا تُعاد تهيئة النوافذ مع كل تحديث لحظي للبيانات
+  const closeEdit = useCallback(() => setEditingId(null), []);
+  const cancelDelete = useCallback(() => setDeleting(null), []);
 
   const set = (key) => (e) => {
     setForm((f) => ({ ...f, [key]: e.target.value }));
@@ -48,7 +59,24 @@ export default function AddMinutes() {
     }
   };
 
-  const recent = availability.filter((a) => a.status !== 'empty').slice(0, 12);
+  const all = availability.filter((a) => a.status !== 'empty');
+  const recent = showAll ? all : all.slice(0, RECENT_LIMIT);
+  const editing = availability.find((a) => a.id === editingId) || null;
+
+  const confirmDelete = async () => {
+    if (!deleting) return;
+    setDeleteBusy(true);
+    try {
+      await deleteAvailability(deleting.id);
+      toast.success('تم حذف الدفعة');
+      setDeleting(null);
+    } catch (err) {
+      toast.error(toArabicError(err));
+      setDeleting(null);
+    } finally {
+      setDeleteBusy(false);
+    }
+  };
   const minutesNumber = Number(form.minutes);
   const showHint = Number.isInteger(minutesNumber) && minutesNumber > 0;
 
@@ -131,11 +159,40 @@ export default function AddMinutes() {
         ) : (
           <div className="grid grid-cards">
             {recent.map((a) => (
-              <AvailabilityCard key={a.id} availability={a} />
+              <AvailabilityCard
+                key={a.id}
+                availability={a}
+                onEdit={(item) => setEditingId(item.id)}
+                onDelete={setDeleting}
+              />
             ))}
           </div>
         )}
+        {all.length > RECENT_LIMIT && (
+          <div className="section-more">
+            <button type="button" className="btn btn-ghost" onClick={() => setShowAll((v) => !v)}>
+              {showAll ? 'عرض الأحدث فقط' : `عرض الكل (${formatNumber(all.length)})`}
+            </button>
+          </div>
+        )}
       </section>
+
+      {editing && <EditAvailabilityModal key={editing.id} availability={editing} onClose={closeEdit} />}
+
+      <ConfirmModal
+        open={!!deleting}
+        title="حذف الدفعة"
+        message={
+          deleting
+            ? `هل أنت متأكد من حذف الدفعة ${formatAvailabilityNumber(deleting)} (${formatNumber(deleting.totalMinutes)} دقيقة)؟ لن يعود بإمكان الزبائن حجزها.`
+            : ''
+        }
+        confirmLabel="نعم، احذفها"
+        danger
+        loading={deleteBusy}
+        onCancel={cancelDelete}
+        onConfirm={confirmDelete}
+      />
     </div>
   );
 }

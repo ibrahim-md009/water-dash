@@ -8,11 +8,11 @@ import { useToast } from '../context/ToastContext';
 
 const PAGES = {
   '/': { title: 'لوحة التحكم', description: 'ملخص سريع لحالة النظام' },
-  '/add-minutes': { title: 'إضافة الدقائق', description: 'أضف دقائق جديدة متاحة للحجز' },
+  '/add-minutes': { title: 'إضافة الدقائق', description: 'أضف دقائق جديدة أو عدّل ما أضفته' },
   '/requests': { title: 'طلبات الحجوزات', description: 'الطلبات التي تنتظر موافقتك' },
   '/confirmed': { title: 'الحجوزات المؤكدة', description: 'حجوزات تم تأكيدها وتنتظر الإنجاز' },
   '/statistics': { title: 'الإحصائيات', description: 'أداء الحجوزات والدخل' },
-  '/payment-settings': { title: 'إعدادات الدفع', description: 'طرق التحويل التي ستظهر للزبائن' },
+  '/payment-settings': { title: 'إعدادات الدفع', description: 'سعر الكوب وطرق التحويل التي ستظهر للزبائن' },
 };
 
 /** ينبّه بتوست عند وصول طلب جديد أثناء فتح اللوحة */

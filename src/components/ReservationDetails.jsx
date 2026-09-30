@@ -1,4 +1,4 @@
-import { Loader2 } from 'lucide-react';
+import { Loader2, Pencil } from 'lucide-react';
 import Modal from './Modal';
 import ReceiptViewer from './ReceiptViewer';
 import StatusBadge from './StatusBadge';
@@ -17,7 +17,7 @@ function Field({ label, children }) {
  * نافذة تفاصيل الحجز.
  * actions: [{ key, label, variant, icon }] — تُنفَّذ عبر onAction(action)
  */
-export default function ReservationDetails({ reservation: r, actions = [], busyKey, onAction, onClose }) {
+export default function ReservationDetails({ reservation: r, actions = [], busyKey, onAction, onEdit, onClose }) {
   const busy = !!busyKey;
 
   return (
@@ -28,8 +28,14 @@ export default function ReservationDetails({ reservation: r, actions = [], busyK
       size="lg"
       busy={busy}
       footer={
-        actions.length > 0 && (
+        (actions.length > 0 || onEdit) && (
           <>
+            {onEdit && (
+              <button type="button" className="btn btn-ghost" disabled={busy} onClick={onEdit}>
+                <Pencil size={18} aria-hidden="true" />
+                تعديل البيانات
+              </button>
+            )}
             {actions.map(({ key, label, variant, icon: Icon }) => (
               <button
                 key={key}

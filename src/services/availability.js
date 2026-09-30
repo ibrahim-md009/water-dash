@@ -57,8 +57,8 @@ export function buildAvailability({
   };
 }
 
-/** إضافة دفعة دقائق جديدة بسجل مستقل */
-export async function addAvailability({ minutes, dateText, notes }) {
+/** يتحقق من بيانات الدفعة (الإضافة والتعديل) */
+function validateBatch({ minutes, dateText }) {
   const total = Number(minutes);
   if (!Number.isInteger(total) || total <= 0) {
     throw new AppError('أدخل عدد دقائق صحيحًا أكبر من صفر.');
@@ -66,6 +66,12 @@ export async function addAvailability({ minutes, dateText, notes }) {
   if (total > 100000) throw new AppError('عدد الدقائق كبير جدًا.');
   const when = (dateText || '').trim();
   if (!when) throw new AppError('أدخل موعد التوفر.');
+  return { total, when };
+}
+
+/** إضافة دفعة دقائق جديدة بسجل مستقل */
+export async function addAvailability({ minutes, dateText, notes }) {
+  const { total, when } = validateBatch({ minutes, dateText });
 
   const ref = newAvailabilityRef();
   await runTransaction(db, async (tx) => {
@@ -77,4 +83,55 @@ export async function addAvailability({ minutes, dateText, notes }) {
     writeNumber(tx, number);
   });
   return ref.id;
+}
+
+/**
+ * تعديل دفعة موجودة (الدقائق الإجمالية، الموعد، الملاحظات).
+ * المحجوز والمنجز لا يتغيّران، والمتاح = الإجمالي − المحجوز − المنجز.
+ * تتم العملية داخل Transaction حتى لا تتعارض مع حجز يصل في نفس اللحظة.
+ */
+export async function updateAvailability(id, { minutes, dateText, notes }) {
+  const { total, when } = validateBatch({ minutes, dateText });
+  const ref = availabilityRef(id);
+
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists()) throw new AppError('هذه الدفعة لم تعد موجودة.');
+
+    const a = snap.data();
+    const reserved = Number(a.reservedMinutes) || 0;
+    const completed = Number(a.completedMinutes) || 0;
+    const used = reserved + completed;
+    if (total < used) {
+      throw new AppError(`لا يمكن أن تقل الدقائق عن ${used} لأن هذا القدر محجوز أو منجز.`);
+    }
+
+    const available = total - used;
+    tx.update(ref, {
+      totalMinutes: total,
+      availableMinutes: available,
+      dateText: when,
+      notes: (notes || '').trim(),
+      status: computeAvailabilityStatus({
+        totalMinutes: total,
+        availableMinutes: available,
+        reservedMinutes: reserved,
+      }),
+      updatedAt: serverTimestamp(),
+    });
+  });
+}
+
+/** حذف دفعة — مسموح فقط إن لم يكن فيها دقائق محجوزة أو منجزة */
+export async function deleteAvailability(id) {
+  const ref = availabilityRef(id);
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists()) return;
+    const a = snap.data();
+    if ((Number(a.reservedMinutes) || 0) > 0 || (Number(a.completedMinutes) || 0) > 0) {
+      throw new AppError('لا يمكن حذف دفعة فيها دقائق محجوزة أو منجزة.');
+    }
+    tx.delete(ref);
+  });
 }

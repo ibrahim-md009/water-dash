@@ -1,9 +1,10 @@
-import { CalendarClock, RotateCcw, StickyNote } from 'lucide-react';
+import { CalendarClock, Pencil, RotateCcw, StickyNote, Trash2 } from 'lucide-react';
 import StatusBadge from './StatusBadge';
 import { formatAvailabilityNumber, formatDateTime, formatMinutes, formatNumber } from '../lib/format';
 
-export default function AvailabilityCard({ availability: a }) {
+export default function AvailabilityCard({ availability: a, onEdit, onDelete }) {
   const total = Number(a.totalMinutes) || 0;
+  const canDelete = !((Number(a.reservedMinutes) || 0) > 0 || (Number(a.completedMinutes) || 0) > 0);
   const pct = (n) => (total > 0 ? Math.min(100, ((Number(n) || 0) / total) * 100) : 0);
 
   return (
@@ -56,7 +57,31 @@ export default function AvailabilityCard({ availability: a }) {
         )}
       </ul>
 
-      <footer className="card-foot">أُضيفت: {formatDateTime(a.createdAt)}</footer>
+      <footer className="card-foot card-foot-row">
+        <span>أُضيفت: {formatDateTime(a.createdAt)}</span>
+        {(onEdit || onDelete) && (
+          <span className="card-actions">
+            {onEdit && (
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => onEdit(a)}>
+                <Pencil size={16} aria-hidden="true" />
+                تعديل
+              </button>
+            )}
+            {onDelete && (
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm btn-danger-ghost"
+                onClick={() => onDelete(a)}
+                disabled={!canDelete}
+                title={canDelete ? undefined : 'لا يمكن حذف دفعة فيها دقائق محجوزة أو منجزة'}
+              >
+                <Trash2 size={16} aria-hidden="true" />
+                حذف
+              </button>
+            )}
+          </span>
+        )}
+      </footer>
     </article>
   );
 }

@@ -749,3 +749,24 @@
   font-weight: 700;
   line-height: 1;
 }
+
+/* ───────── تعديل وحذف الدفعات ───────── */
+.card-foot-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.card-actions {
+  display: flex;
+  gap: 8px;
+}
+.btn-danger-ghost {
+  color: var(--danger-text);
+}
+.section-more {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
+}
