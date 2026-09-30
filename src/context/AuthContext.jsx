@@ -1,5 +1,11 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import {
+  EmailAuthProvider,
+  onAuthStateChanged,
+  reauthenticateWithCredential,
+  signInWithEmailAndPassword,
+  signOut,
+} from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import { COLLECTIONS } from '../config/app';
@@ -49,7 +55,17 @@ export function AuthProvider({ children }) {
 
   const logout = useCallback(() => signOut(auth), []);
 
-  const value = useMemo(() => ({ ...state, login, logout }), [state, login, logout]);
+  /** يتأكد من كلمة سر المسؤول الحالي قبل العمليات الحساسة (مثل ضبط المصنع) */
+  const reauthenticate = useCallback(async (password) => {
+    const current = auth.currentUser;
+    if (!current?.email) throw new AppError('تعذر التحقق من الحساب. سجّل الدخول مجددًا.');
+    await reauthenticateWithCredential(current, EmailAuthProvider.credential(current.email, password));
+  }, []);
+
+  const value = useMemo(
+    () => ({ ...state, login, logout, reauthenticate }),
+    [state, login, logout, reauthenticate],
+  );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   BarChart3,
@@ -7,7 +8,9 @@ import {
   LayoutDashboard,
   LogOut,
   PlusCircle,
+  RotateCcw,
 } from 'lucide-react';
+import FactoryResetModal from './FactoryResetModal';
 import Logo from './Logo';
 import ThemeToggle from './ThemeToggle';
 import { APP_NAME, APP_TAGLINE } from '../config/app';
@@ -25,6 +28,7 @@ const NAV = [
 
 export default function Sidebar({ open, onClose }) {
   const { logout } = useAuth();
+  const [resetOpen, setResetOpen] = useState(false);
   const { reservations } = useData();
   const pending = reservations.filter((r) => r.status === 'pending').length;
 
@@ -50,11 +54,24 @@ export default function Sidebar({ open, onClose }) {
 
       <div className="sidebar-foot">
         <ThemeToggle />
+        <button
+          type="button"
+          className="sidebar-reset"
+          onClick={() => {
+            onClose();
+            setResetOpen(true);
+          }}
+        >
+          <RotateCcw size={18} aria-hidden="true" />
+          <span>ضبط المصنع</span>
+        </button>
         <button type="button" className="nav-link logout" onClick={logout}>
           <LogOut size={20} aria-hidden="true" />
           <span>تسجيل الخروج</span>
         </button>
       </div>
+
+      <FactoryResetModal open={resetOpen} onClose={() => setResetOpen(false)} />
 
       <svg className="sidebar-wave" viewBox="0 0 264 40" preserveAspectRatio="none" aria-hidden="true">
         <path d="M0 18 C44 4 88 32 132 18 S220 4 264 18 V40 H0 Z" />

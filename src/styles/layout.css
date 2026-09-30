@@ -89,6 +89,29 @@
   padding: 0 6px;
   font-size: 0.82rem;
 }
+.sidebar-reset {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 46px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--danger-btn);
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  transition: background-color 0.15s;
+}
+.sidebar-reset:hover {
+  background: var(--danger-btn-hover);
+}
+.sidebar-reset:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
 .nav-link.logout:hover {
   background: var(--danger-soft);
   color: var(--danger-text);
@@ -325,7 +348,7 @@
     min-width: max-content;
   }
   .toast-stack {
-    bottom: 12px;
+    top: max(12px, env(safe-area-inset-top));
   }
   .chart-box {
     height: 220px;

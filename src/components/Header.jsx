@@ -1,11 +1,26 @@
 import { useCallback, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, BellOff, LogOut, Menu, User } from 'lucide-react';
+import { Bell, BellOff, ChevronLeft, LogOut, Menu, User } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { useOutsideClick } from '../hooks/useOutsideClick';
-import { formatMinutes } from '../lib/format';
+import { formatMinutes, formatMoney, toDate } from '../lib/format';
+
+/** وقت نسبي مختصر: الآن / منذ 5 د / منذ 3 س / منذ 2 يوم */
+function timeAgo(value) {
+  const d = toDate(value);
+  if (!d) return '';
+  const sec = Math.max(0, Math.floor((Date.now() - d.getTime()) / 1000));
+  if (sec < 60) return 'الآن';
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `منذ ${min} د`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `منذ ${hr} س`;
+  return `منذ ${Math.floor(hr / 24)} يوم`;
+}
+
+const initial = (name) => (name || '?').trim().charAt(0).toUpperCase();
 
 function Dropdown({ label, trigger, children }) {
   const [open, setOpen] = useState(false);
@@ -63,39 +78,59 @@ export default function Header({ title, description, onMenu }) {
         >
           {(close) => (
             <div className="notif">
-              <h4>طلبات بانتظار المراجعة</h4>
+              <div className="notif-head">
+                <h4>طلبات بانتظار المراجعة</h4>
+                {pending.length > 0 && <span className="notif-count">{pending.length}</span>}
+              </div>
+
               {pending.length === 0 ? (
-                <p className="notif-empty">
-                  <BellOff size={18} aria-hidden="true" /> لا توجد طلبات جديدة
-                </p>
+                <div className="notif-empty">
+                  <span className="notif-empty-icon">
+                    <BellOff size={22} aria-hidden="true" />
+                  </span>
+                  <strong>لا توجد طلبات جديدة</strong>
+                  <span>سيظهر هنا أي طلب حجز جديد فور وصوله.</span>
+                </div>
               ) : (
-                <ul>
+                <ul className="notif-list">
                   {pending.slice(0, 5).map((r) => (
                     <li key={r.id}>
                       <button
                         type="button"
+                        className="notif-item"
                         onClick={() => {
                           close();
                           navigate('/requests', { state: { openId: r.id } });
                         }}
                       >
-                        <strong>{r.name}</strong>
-                        <span>{formatMinutes(r.minutes)}</span>
+                        <span className="notif-avatar" aria-hidden="true">
+                          {initial(r.name)}
+                        </span>
+                        <span className="notif-main">
+                          <strong>{r.name}</strong>
+                          <span>
+                            {formatMinutes(r.minutes)}
+                            {r.price ? ` · ${formatMoney(r.price)}` : ''}
+                          </span>
+                        </span>
+                        <span className="notif-time">{timeAgo(r.createdAt)}</span>
+                        <ChevronLeft size={16} className="notif-arrow" aria-hidden="true" />
                       </button>
                     </li>
                   ))}
                 </ul>
               )}
-              {pending.length > 5 && (
+
+              {pending.length > 0 && (
                 <button
                   type="button"
-                  className="btn btn-ghost btn-sm btn-block"
+                  className="notif-all"
                   onClick={() => {
                     close();
                     navigate('/requests');
                   }}
                 >
-                  عرض كل الطلبات ({pending.length})
+                  عرض كل الطلبات{pending.length > 5 ? ` (${pending.length})` : ''}
                 </button>
               )}
             </div>
