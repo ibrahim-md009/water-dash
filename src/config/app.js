@@ -27,6 +27,8 @@ export const COLLECTIONS = {
 
 export const SETTINGS_DOC = 'general';
 export const COUNTERS_DOC = 'counters';
+/** تصحيحات الإحصائيات وتاريخ آخر تصفير (للمسؤول فقط — القاعدة الحالية تحميه) */
+export const STATS_DOC = 'stats';
 
 /** طرق الدفع الافتراضية (تُنشأ مرة واحدة إن لم تكن موجودة) */
 export const DEFAULT_PAYMENT_METHODS = [

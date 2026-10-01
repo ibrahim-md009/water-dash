@@ -226,3 +226,22 @@ export async function updateReservationDetails(id, { name, phone, notes }) {
     });
   });
 }
+
+// ─────────────────────────────────────────────────────────────
+// عمل خصم على طلب قيد المراجعة (₪). 0 = إزالة الخصم.
+// السعر الأصلي يبقى كما هو، والخصم يُطرح منه عند احتساب الدخل في الإحصائيات.
+// ─────────────────────────────────────────────────────────────
+export async function setReservationDiscount(id, amount) {
+  const value = Math.round(Number(amount) * 100) / 100;
+  if (!Number.isFinite(value) || value < 0) throw new AppError('أدخل قيمة خصم صحيحة.');
+
+  const rRef = reservationRef(id);
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(rRef);
+    if (!snap.exists()) throw new AppError('هذا الحجز غير موجود.');
+    const r = snap.data();
+    if (r.status !== S.PENDING) throw new AppError(STALE);
+    if (value > (Number(r.price) || 0)) throw new AppError('الخصم أكبر من سعر الحجز.');
+    tx.update(rRef, { discount: value, discountedAt: serverTimestamp(), updatedAt: serverTimestamp() });
+  });
+}

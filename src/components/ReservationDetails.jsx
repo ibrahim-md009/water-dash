@@ -1,8 +1,9 @@
-import { Loader2, Pencil } from 'lucide-react';
+import { Loader2, Pencil, Tag } from 'lucide-react';
 import Modal from './Modal';
 import ReceiptViewer from './ReceiptViewer';
 import StatusBadge from './StatusBadge';
 import { formatDateTime, formatMinutes, formatMoney } from '../lib/format';
+import { discountOf } from '../lib/pricing';
 
 function Field({ label, children }) {
   return (
@@ -17,7 +18,7 @@ function Field({ label, children }) {
  * نافذة تفاصيل الحجز.
  * actions: [{ key, label, variant, icon }] — تُنفَّذ عبر onAction(action)
  */
-export default function ReservationDetails({ reservation: r, actions = [], busyKey, onAction, onEdit, onClose }) {
+export default function ReservationDetails({ reservation: r, actions = [], busyKey, onAction, onEdit, onDiscount, onClose }) {
   const busy = !!busyKey;
 
   return (
@@ -28,12 +29,18 @@ export default function ReservationDetails({ reservation: r, actions = [], busyK
       size="lg"
       busy={busy}
       footer={
-        (actions.length > 0 || onEdit) && (
+        (actions.length > 0 || onEdit || onDiscount) && (
           <>
             {onEdit && (
               <button type="button" className="btn btn-ghost" disabled={busy} onClick={onEdit}>
                 <Pencil size={18} aria-hidden="true" />
                 تعديل البيانات
+              </button>
+            )}
+            {onDiscount && (
+              <button type="button" className="btn btn-ghost" disabled={busy} onClick={onDiscount}>
+                <Tag size={18} aria-hidden="true" />
+                عمل خصم
               </button>
             )}
             {actions.map(({ key, label, variant, icon: Icon }) => (
@@ -62,7 +69,16 @@ export default function ReservationDetails({ reservation: r, actions = [], busyK
               </a>
             </Field>
             <Field label="عدد الدقائق">{formatMinutes(r.minutes)}</Field>
-            <Field label="السعر">{formatMoney(r.price)}</Field>
+            <Field label="السعر">
+              {discountOf(r) > 0 ? (
+                <>
+                  <s className="old-price">{formatMoney(r.price)}</s> {formatMoney(Math.max(0, r.price - discountOf(r)))}
+                </>
+              ) : (
+                formatMoney(r.price)
+              )}
+            </Field>
+            {discountOf(r) > 0 && <Field label="الخصم">{formatMoney(discountOf(r))}</Field>}
             <Field label="موعد الحجز">{r.dateText || '—'}</Field>
             <Field label="الحالة">
               <StatusBadge status={r.status} />

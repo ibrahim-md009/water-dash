@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { collection, doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
-import { COLLECTIONS, SETTINGS_DOC } from '../config/app';
+import { COLLECTIONS, SETTINGS_DOC, STATS_DOC } from '../config/app';
 import { toDate } from '../lib/format';
 import { toArabicError } from '../lib/errors';
 import { normalizeSettings } from '../lib/pricing';
@@ -21,7 +21,8 @@ export function DataProvider({ children }) {
   const [reservations, setReservations] = useState([]);
   const [paymentMethods, setPaymentMethods] = useState([]);
   const [rawSettings, setRawSettings] = useState(null);
-  const [ready, setReady] = useState({ availability: false, reservations: false, paymentMethods: false, settings: false });
+  const [rawStats, setRawStats] = useState(null);
+  const [ready, setReady] = useState({ availability: false, reservations: false, paymentMethods: false, settings: false, stats: false });
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -62,11 +63,27 @@ export function DataProvider({ children }) {
         },
         onError,
       ),
+      onSnapshot(
+        doc(db, COLLECTIONS.settings, STATS_DOC),
+        (snap) => {
+          setRawStats(snap.exists() ? snap.data(SNAP_OPTS) : null);
+          markReady('stats');
+        },
+        onError,
+      ),
     ];
 
     ensureDefaults().catch(onError);
     return () => unsubs.forEach((u) => u());
   }, []);
+
+  const statsMeta = useMemo(
+    () => ({
+      resetAt: toDate(rawStats?.resetAt),
+      adjustments: (rawStats?.adjustments || []).map((a) => ({ ...a, at: toDate(a.at) })),
+    }),
+    [rawStats],
+  );
 
   const value = useMemo(
     () => ({
@@ -74,10 +91,11 @@ export function DataProvider({ children }) {
       reservations,
       paymentMethods,
       settings: normalizeSettings(rawSettings),
+      statsMeta,
       loading: !Object.values(ready).every(Boolean),
       error,
     }),
-    [availability, reservations, paymentMethods, rawSettings, ready, error],
+    [availability, reservations, paymentMethods, rawSettings, statsMeta, ready, error],
   );
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

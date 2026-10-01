@@ -10,11 +10,17 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { Ban, CheckCheck, Coins, GlassWater, LineChart, Timer, XCircle } from 'lucide-react';
+import { Ban, CheckCheck, Coins, GlassWater, LineChart, Pencil, RotateCcw, Tag, Timer, XCircle } from 'lucide-react';
 import DateFilter from '../components/DateFilter';
 import EmptyState from '../components/EmptyState';
 import LoadingState from '../components/LoadingState';
 import StatCard from '../components/StatCard';
+import ConfirmModal from '../components/ConfirmModal';
+import EditStatsModal from '../components/EditStatsModal';
+import { useToast } from '../context/ToastContext';
+import { toArabicError } from '../lib/errors';
+import { STATS_FILTERS } from '../lib/constants';
+import { resetStats } from '../services/stats';
 import { useData } from '../context/DataContext';
 import { computeRangeStats } from '../lib/stats';
 import { formatMoney, formatNumber } from '../lib/format';
@@ -69,18 +75,46 @@ function ChartCard({ title, unit, dataKey, series, type, color }) {
 }
 
 export default function Statistics() {
-  const { reservations, settings, loading } = useData();
+  const { reservations, settings, statsMeta, loading } = useData();
+  const toast = useToast();
   const [filter, setFilter] = useState('month');
+  const [editing, setEditing] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const [resetBusy, setResetBusy] = useState(false);
 
   const stats = useMemo(
-    () => computeRangeStats(reservations, settings, filter),
-    [reservations, settings, filter],
+    () => computeRangeStats(reservations, settings, statsMeta, filter),
+    [reservations, settings, statsMeta, filter],
   );
+  const periodLabel = STATS_FILTERS.find((f) => f.value === filter)?.label || '';
+
+  const onReset = async () => {
+    setResetBusy(true);
+    try {
+      await resetStats();
+      toast.success('تمت إعادة الإحصائيات للصفر');
+      setResetting(false);
+    } catch (err) {
+      toast.error(toArabicError(err));
+    } finally {
+      setResetBusy(false);
+    }
+  };
 
   return (
     <div className="stack">
       <div className="toolbar">
         <DateFilter value={filter} onChange={setFilter} />
+        <div className="toolbar-actions">
+          <button type="button" className="btn btn-ghost" onClick={() => setEditing(true)} disabled={loading}>
+            <Pencil size={18} aria-hidden="true" />
+            تعديل الإحصائيات
+          </button>
+          <button type="button" className="btn btn-danger" onClick={() => setResetting(true)} disabled={loading}>
+            <RotateCcw size={18} aria-hidden="true" />
+            إعادة للصفر
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -98,6 +132,7 @@ export default function Statistics() {
               hint={stats.pendingIncome > 0 ? `منه ${formatMoney(stats.pendingIncome)} مؤكد بانتظار الإنجاز` : 'يُحتسب من لحظة تأكيد الحجز'}
             />
             <StatCard icon={CheckCheck} label="الحجوزات المكتملة" value={stats.completedCount} unit="حجز" />
+            <StatCard icon={Tag} label="إجمالي الخصومات" value={stats.discounts} unit="₪" />
             <StatCard icon={Ban} label="الحجوزات الملغاة" value={stats.cancelledCount} unit="حجز" />
             <StatCard icon={XCircle} label="الطلبات المرفوضة" value={stats.rejectedCount} unit="طلب" />
           </section>
@@ -117,6 +152,18 @@ export default function Statistics() {
           )}
         </>
       )}
+
+      <EditStatsModal open={editing} stats={stats} periodLabel={periodLabel} onClose={() => setEditing(false)} />
+      <ConfirmModal
+        open={resetting}
+        title="إعادة الإحصائيات للصفر"
+        message="ستعود كل الإحصائيات إلى الصفر (الدقائق والأكواب والدخل والخصومات والعدادات) ولن تُحسب إلا الحجوزات بعد الآن. الحجوزات نفسها لا تُحذف. هل أنت متأكد؟"
+        confirmLabel="نعم، صفّر الإحصائيات"
+        danger
+        loading={resetBusy}
+        onCancel={() => setResetting(false)}
+        onConfirm={onReset}
+      />
     </div>
   );
 }

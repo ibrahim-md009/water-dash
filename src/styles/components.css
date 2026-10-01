@@ -950,3 +950,21 @@
   justify-content: center;
   margin-top: 16px;
 }
+
+.old-price {
+  color: var(--text-2);
+  font-weight: 400;
+  font-size: 0.9em;
+}
+.price-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+}
+.price-line.total strong {
+  color: var(--accent);
+  font-size: 1.15rem;
+}

@@ -180,6 +180,21 @@
   flex-wrap: wrap;
   gap: 12px;
 }
+.toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-inline-start: auto;
+}
+@media (max-width: 680px) {
+  .toolbar-actions {
+    width: 100%;
+    margin-inline-start: 0;
+  }
+  .toolbar-actions .btn {
+    flex: 1;
+  }
+}
 .drawer-backdrop {
   display: none;
 }
@@ -355,7 +370,7 @@
   }
 }
 
-@media (max-width: 380px) {
+@media (max-width: 340px) {
   .grid-stats {
     grid-template-columns: minmax(0, 1fr);
   }

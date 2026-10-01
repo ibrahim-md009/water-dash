@@ -2,6 +2,7 @@ import { CalendarClock, Clock, Phone } from 'lucide-react';
 import StatusBadge from './StatusBadge';
 import ReceiptViewer from './ReceiptViewer';
 import { formatDateTime, formatMinutes, formatMoney } from '../lib/format';
+import { discountOf } from '../lib/pricing';
 
 export default function ReservationCard({ reservation: r, timeLabel, timeValue, onOpen }) {
   return (
@@ -40,7 +41,10 @@ export default function ReservationCard({ reservation: r, timeLabel, timeValue, 
       </div>
       <footer className="reservation-foot">
         <span className="reservation-minutes">{formatMinutes(r.minutes)}</span>
-        <span className="reservation-price">{formatMoney(r.price)}</span>
+        <span className="reservation-price">
+          {discountOf(r) > 0 && <s className="old-price">{formatMoney(r.price)}</s>}{' '}
+          {formatMoney(Math.max(0, r.price - discountOf(r)))}
+        </span>
       </footer>
     </article>
   );

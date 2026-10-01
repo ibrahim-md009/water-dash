@@ -31,6 +31,7 @@ export default function Requests() {
   return (
     <ReservationsBoard
       status="pending"
+      allowDiscount
       timeLabel="أُرسل"
       timeField="createdAt"
       getActions={getActions}

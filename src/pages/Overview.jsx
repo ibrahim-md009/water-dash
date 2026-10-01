@@ -18,11 +18,11 @@ import { ClipboardList } from 'lucide-react';
 
 export default function Overview() {
   const navigate = useNavigate();
-  const { availability, reservations, settings, loading } = useData();
+  const { availability, reservations, settings, statsMeta, loading } = useData();
 
   const o = useMemo(
-    () => computeOverview(availability, reservations, settings),
-    [availability, reservations, settings],
+    () => computeOverview(availability, reservations, settings, statsMeta),
+    [availability, reservations, settings, statsMeta],
   );
 
   if (loading) return <LoadingState />;

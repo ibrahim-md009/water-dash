@@ -1,6 +1,6 @@
 import { collection, doc, getDocs, writeBatch } from 'firebase/firestore';
 import { db } from '../firebase';
-import { COLLECTIONS, COUNTERS_DOC, SETTINGS_DOC } from '../config/app';
+import { COLLECTIONS, COUNTERS_DOC, SETTINGS_DOC, STATS_DOC } from '../config/app';
 import { ensureDefaults } from './paymentMethods';
 
 const CHUNK = 400; // الحد الأقصى لعمليات الـ batch هو 500
@@ -28,6 +28,7 @@ export async function factoryReset() {
   const batch = writeBatch(db);
   batch.delete(doc(db, COLLECTIONS.settings, SETTINGS_DOC));
   batch.delete(doc(db, COLLECTIONS.settings, COUNTERS_DOC));
+  batch.delete(doc(db, COLLECTIONS.settings, STATS_DOC));
   await batch.commit();
 
   await ensureDefaults();

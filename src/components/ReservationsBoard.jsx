@@ -6,6 +6,7 @@ import ReservationCard from './ReservationCard';
 import ReservationDetails from './ReservationDetails';
 import ConfirmModal from './ConfirmModal';
 import EditReservationModal from './EditReservationModal';
+import DiscountModal from './DiscountModal';
 import { useData } from '../context/DataContext';
 import { useToast } from '../context/ToastContext';
 import { toArabicError } from '../lib/errors';
@@ -15,7 +16,7 @@ import { toDate } from '../lib/format';
  * لوحة حجوزات مشتركة (تُستخدم في صفحة الطلبات وصفحة المؤكدة).
  * getActions(reservation) يرجع الأزرار: { key, label, variant, icon, success, run, confirm? }
  */
-export default function ReservationsBoard({ status, timeLabel, timeField, getActions, empty }) {
+export default function ReservationsBoard({ status, timeLabel, timeField, getActions, empty, allowDiscount = false }) {
   const { reservations, loading } = useData();
   const toast = useToast();
   const location = useLocation();
@@ -25,11 +26,14 @@ export default function ReservationsBoard({ status, timeLabel, timeField, getAct
   const [pending, setPending] = useState(null); // { action, reservation }
   const [busyKey, setBusyKey] = useState(null);
   const [editing, setEditing] = useState(false);
+  const [discounting, setDiscounting] = useState(false);
 
   // دوال ثابتة حتى لا تتغير النوافذ المفتوحة مع كل تحديث لحظي للبيانات
   const closeDetails = useCallback(() => setSelectedId(null), []);
   const openEdit = useCallback(() => setEditing(true), []);
   const closeEdit = useCallback(() => setEditing(false), []);
+  const openDiscount = useCallback(() => setDiscounting(true), []);
+  const closeDiscount = useCallback(() => setDiscounting(false), []);
 
   const list = useMemo(() => {
     const at = (r) => (toDate(r[timeField]) || toDate(r.createdAt))?.getTime() || 0;
@@ -93,10 +97,13 @@ export default function ReservationsBoard({ status, timeLabel, timeField, getAct
         busyKey={pending ? null : busyKey}
         onAction={onAction}
         onEdit={openEdit}
+        onDiscount={allowDiscount ? openDiscount : undefined}
         onClose={closeDetails}
       />
 
       {editing && selected && <EditReservationModal key={selected.id} reservation={selected} onClose={closeEdit} />}
+
+      {discounting && selected && <DiscountModal reservation={selected} onClose={closeDiscount} />}
 
       <ConfirmModal
         open={!!pending}
