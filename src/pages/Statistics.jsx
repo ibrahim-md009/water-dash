@@ -17,7 +17,7 @@ import LoadingState from '../components/LoadingState';
 import StatCard from '../components/StatCard';
 import { useData } from '../context/DataContext';
 import { computeRangeStats } from '../lib/stats';
-import { formatNumber } from '../lib/format';
+import { formatMoney, formatNumber } from '../lib/format';
 
 function ChartTooltip({ active, payload, label, unit }) {
   if (!active || !payload?.length) return null;
@@ -90,17 +90,23 @@ export default function Statistics() {
           <section className="grid grid-stats" aria-label="أرقام الفترة">
             <StatCard icon={Timer} label="إجمالي الدقائق المنجزة" value={stats.completedMinutes} unit="دقيقة" />
             <StatCard icon={GlassWater} label="إجمالي أكواب المياه" value={stats.cups} unit="كوب" />
-            <StatCard icon={Coins} label="إجمالي الدخل" value={stats.income} unit="₪" />
+            <StatCard
+              icon={Coins}
+              label="إجمالي الدخل"
+              value={stats.income}
+              unit="₪"
+              hint={stats.pendingIncome > 0 ? `منه ${formatMoney(stats.pendingIncome)} مؤكد بانتظار الإنجاز` : 'يُحتسب من لحظة تأكيد الحجز'}
+            />
             <StatCard icon={CheckCheck} label="الحجوزات المكتملة" value={stats.completedCount} unit="حجز" />
             <StatCard icon={Ban} label="الحجوزات الملغاة" value={stats.cancelledCount} unit="حجز" />
             <StatCard icon={XCircle} label="الطلبات المرفوضة" value={stats.rejectedCount} unit="طلب" />
           </section>
 
-          {stats.completedCount === 0 ? (
+          {stats.completedCount === 0 && stats.incomeCount === 0 ? (
             <EmptyState
               icon={LineChart}
-              title="لا توجد حجوزات منجزة في هذه الفترة"
-              text="ستظهر الرسوم البيانية بمجرد تسجيل حجوزات كمنجزة."
+              title="لا توجد حجوزات مؤكدة أو منجزة في هذه الفترة"
+              text="يظهر الدخل بعد تأكيد الحجز، وتظهر الدقائق والأكواب بعد تسجيله كمنجز."
             />
           ) : (
             <div className="grid grid-charts">

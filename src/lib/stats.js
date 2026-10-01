@@ -6,7 +6,12 @@ import { calcCups, calcPrice } from './pricing';
 const DAY = 24 * 60 * 60 * 1000;
 const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
 
-/** تاريخ الحدث الذي يُحسب عليه الحجز في الإحصائيات */
+/** تاريخ احتساب الدخل: لحظة تأكيد الحجز (وليس لحظة الإنجاز) */
+export function incomeDate(r) {
+  return toDate(r.confirmedAt) || toDate(r.completedAt) || toDate(r.createdAt);
+}
+
+/** تاريخ الحدث الذي تُحسب عليه الدقائق والأكواب (الإنجاز) والإلغاء والرفض */
 export function eventDate(r) {
   const field = {
     completed: 'completedAt',
@@ -46,32 +51,61 @@ const priceOf = (r, settings) =>
 
 const cupsOf = (r, settings) => calcCups(r.minutes, r.minutesPerCup || settings.minutesPerCup);
 
-function totals(list, settings) {
+const sumPrice = (list, settings) => list.reduce((s, r) => s + priceOf(r, settings), 0);
+
+/** حجوزات تُحتسب في الدخل: المؤكدة + المنجزة (حسب تاريخ التأكيد) */
+function incomeReservations(reservations, range) {
+  return reservations.filter(
+    (r) =>
+      (r.status === RESERVATION_STATUS.CONFIRMED || r.status === RESERVATION_STATUS.COMPLETED) &&
+      inRange(incomeDate(r), range),
+  );
+}
+
+/** حجوزات منجزة: تُحتسب منها الدقائق والأكواب والعدد (حسب تاريخ الإنجاز) */
+function completedReservations(reservations, range) {
+  return reservations.filter(
+    (r) => r.status === RESERVATION_STATUS.COMPLETED && inRange(eventDate(r), range),
+  );
+}
+
+function completedTotals(list, settings) {
   return list.reduce(
     (acc, r) => {
       acc.minutes += Number(r.minutes) || 0;
       acc.cups += cupsOf(r, settings);
-      acc.income += priceOf(r, settings);
       acc.count += 1;
       return acc;
     },
-    { minutes: 0, cups: 0, income: 0, count: 0 },
+    { minutes: 0, cups: 0, count: 0 },
   );
 }
 
 const round2 = (n) => Math.round(n * 100) / 100;
 
-/** إحصائيات الحجوزات المنجزة بين تاريخين */
+/**
+ * إحصائيات بين تاريخين:
+ *  - الدخل: من لحظة التأكيد (مؤكد + منجز)، وينقص تلقائيًا عند الإلغاء.
+ *  - الدقائق/الأكواب/العدد: من لحظة الإنجاز فقط.
+ */
 export function statsBetween(reservations, settings, start, end) {
   const range = { start, end };
-  const completed = reservations.filter(
-    (r) => r.status === RESERVATION_STATUS.COMPLETED && inRange(eventDate(r), range),
+  const incomeList = incomeReservations(reservations, range);
+  const t = completedTotals(completedReservations(reservations, range), settings);
+  const pendingIncome = sumPrice(
+    incomeList.filter((r) => r.status === RESERVATION_STATUS.CONFIRMED),
+    settings,
   );
-  const t = totals(completed, settings);
-  return { minutes: t.minutes, cups: round2(t.cups), income: round2(t.income), count: t.count };
+  return {
+    minutes: t.minutes,
+    cups: round2(t.cups),
+    income: round2(sumPrice(incomeList, settings)),
+    pendingIncome: round2(pendingIncome),
+    count: t.count,
+  };
 }
 
-function buildSeries(completed, filter, range, settings, now) {
+function buildSeries(completed, incomeList, filter, range, settings, now) {
   const buckets = new Map();
   const add = (key, label) => buckets.set(key, { key, label, income: 0, minutes: 0, bookings: 0 });
   let keyOf;
@@ -90,8 +124,11 @@ function buildSeries(completed, filter, range, settings, now) {
     }
     keyOf = (d) => startOfDay(d).toDateString();
   } else {
-    if (!completed.length) return [];
-    const dates = completed.map((r) => eventDate(r)).filter(Boolean);
+    const dates = [
+      ...completed.map((r) => eventDate(r)),
+      ...incomeList.map((r) => incomeDate(r)),
+    ].filter(Boolean);
+    if (!dates.length) return [];
     const min = startOfDay(new Date(Math.min(...dates)));
     const today = startOfDay(now);
     const spanDays = Math.round((today - min) / DAY);
@@ -114,11 +151,16 @@ function buildSeries(completed, filter, range, settings, now) {
     }
   }
 
+  incomeList.forEach((r) => {
+    const d = incomeDate(r);
+    const bucket = d && buckets.get(keyOf(d));
+    if (bucket) bucket.income += priceOf(r, settings);
+  });
+
   completed.forEach((r) => {
     const d = eventDate(r);
     const bucket = d && buckets.get(keyOf(d));
     if (!bucket) return;
-    bucket.income += priceOf(r, settings);
     bucket.minutes += Number(r.minutes) || 0;
     bucket.bookings += 1;
   });
@@ -132,17 +174,24 @@ export function computeRangeStats(reservations, settings, filter, now = new Date
   const inPeriod = (status) =>
     reservations.filter((r) => r.status === status && inRange(eventDate(r), range));
 
-  const completed = inPeriod(RESERVATION_STATUS.COMPLETED);
-  const t = totals(completed, settings);
+  const completed = completedReservations(reservations, range);
+  const incomeList = incomeReservations(reservations, range);
+  const t = completedTotals(completed, settings);
+  const pendingIncome = sumPrice(
+    incomeList.filter((r) => r.status === RESERVATION_STATUS.CONFIRMED),
+    settings,
+  );
 
   return {
     completedMinutes: t.minutes,
     cups: round2(t.cups),
-    income: round2(t.income),
+    income: round2(sumPrice(incomeList, settings)),
+    pendingIncome: round2(pendingIncome),
+    incomeCount: incomeList.length,
     completedCount: t.count,
     cancelledCount: inPeriod(RESERVATION_STATUS.CANCELLED).length,
     rejectedCount: inPeriod(RESERVATION_STATUS.REJECTED).length,
-    series: buildSeries(completed, filter, range, settings, now),
+    series: buildSeries(completed, incomeList, filter, range, settings, now),
   };
 }
 
@@ -183,6 +232,7 @@ export function computeOverview(availability, reservations, settings, now = new 
     completedMinutes: all.minutes,
     cups: all.cups,
     income: all.income,
+    pendingIncome: all.pendingIncome,
     today,
     week,
     month,

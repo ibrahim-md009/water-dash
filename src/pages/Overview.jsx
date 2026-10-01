@@ -75,7 +75,7 @@ export default function Overview() {
           label="إجمالي الدخل"
           value={o.income}
           unit="₪"
-          hint={`اليوم: ${formatMoney(o.today.income)}`}
+          hint={o.pendingIncome > 0 ? `منه ${formatMoney(o.pendingIncome)} بانتظار الإنجاز` : `اليوم: ${formatMoney(o.today.income)}`}
           trend={o.trends.income}
         />
       </section>
