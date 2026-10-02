@@ -1,4 +1,5 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Bell, BellOff, ChevronLeft, LogOut, Menu, User } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
@@ -20,13 +21,38 @@ function timeAgo(value) {
   return `منذ ${Math.floor(hr / 24)} يوم`;
 }
 
+/** هل الشاشة جوال؟ (على الجوال تظهر القوائم كـ Bottom Sheet) */
+function useIsMobile(query = '(max-width: 680px)') {
+  const [match, setMatch] = useState(() => typeof window !== 'undefined' && window.matchMedia(query).matches);
+  useEffect(() => {
+    const mq = window.matchMedia(query);
+    const onChange = () => setMatch(mq.matches);
+    onChange();
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, [query]);
+  return match;
+}
+
+/** عدد الطلبات الظاهرة في الإشعارات (الباقي من صفحة الطلبات) */
+const NOTIF_LIMIT = 3;
+
 const initial = (name) => (name || '?').trim().charAt(0).toUpperCase();
 
 function Dropdown({ label, trigger, children }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
+  const isMobile = useIsMobile();
   const close = useCallback(() => setOpen(false), []);
-  useOutsideClick(ref, close, open);
+  // على الجوال الإغلاق يتم عبر الخلفية المعتمة (القائمة تُرسم خارج الهيدر)
+  useOutsideClick(ref, close, open && !isMobile);
+
+  useEffect(() => {
+    if (!open || !isMobile) return undefined;
+    const onKey = (e) => e.key === 'Escape' && close();
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [open, isMobile, close]);
 
   return (
     <div className="dropdown" ref={ref}>
@@ -40,7 +66,19 @@ function Dropdown({ label, trigger, children }) {
       >
         {trigger}
       </button>
-      {open && <div className="dropdown-panel">{children(close)}</div>}
+      {open && !isMobile && <div className="dropdown-panel">{children(close)}</div>}
+      {open &&
+        isMobile &&
+        createPortal(
+          <>
+            <div className="sheet-backdrop" onClick={close} aria-hidden="true" />
+            <div className="sheet" role="dialog" aria-label={label}>
+              <span className="sheet-handle" aria-hidden="true" />
+              {children(close)}
+            </div>
+          </>,
+          document.body,
+        )}
     </div>
   );
 }
@@ -49,7 +87,15 @@ export default function Header({ title, description, onMenu }) {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const { reservations } = useData();
-  const pending = reservations.filter((r) => r.status === 'pending');
+  // الأحدث أولًا
+  const pending = useMemo(
+    () =>
+      reservations
+        .filter((r) => r.status === 'pending')
+        .sort((a, b) => (toDate(b.createdAt)?.getTime() || 0) - (toDate(a.createdAt)?.getTime() || 0)),
+    [reservations],
+  );
+  const rest = Math.max(0, pending.length - NOTIF_LIMIT);
 
   return (
     <header className="topbar">
@@ -93,7 +139,7 @@ export default function Header({ title, description, onMenu }) {
                 </div>
               ) : (
                 <ul className="notif-list">
-                  {pending.slice(0, 5).map((r) => (
+                  {pending.slice(0, NOTIF_LIMIT).map((r) => (
                     <li key={r.id}>
                       <button
                         type="button"
@@ -130,7 +176,7 @@ export default function Header({ title, description, onMenu }) {
                     navigate('/requests');
                   }}
                 >
-                  عرض كل الطلبات{pending.length > 5 ? ` (${pending.length})` : ''}
+                  {rest > 0 ? `عرض باقي الطلبات (${rest})` : 'عرض كل الطلبات'}
                 </button>
               )}
             </div>
