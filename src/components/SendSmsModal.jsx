@@ -1,15 +1,9 @@
 import { MessageSquare } from 'lucide-react';
 import Modal from './Modal';
-import { APP_NAME } from '../config/app';
-import { formatMinutes } from '../lib/format';
 
 /** نص رسالة تأكيد الحجز — عدّله من هنا */
 export function buildConfirmMessage(r) {
-  const parts = [`مرحبًا ${r.name || ''}،`, `تم تأكيد حجزك لدى ${APP_NAME}.`];
-  if (r.minutes) parts.push(`المدة: ${formatMinutes(r.minutes)}.`);
-  if (r.dateText) parts.push(`الموعد: ${r.dateText}.`);
-  parts.push('شكرًا لك.');
-  return parts.join('\n');
+  return r.dateText ? `تم تأكيد حجزك والتعبئة ${r.dateText}` : 'تم تأكيد حجزك';
 }
 
 /** رابط SMS جاهز (iOS يستخدم & قبل body، وأندرويد ؟) */
