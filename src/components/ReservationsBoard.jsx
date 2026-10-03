@@ -7,6 +7,7 @@ import ReservationDetails from './ReservationDetails';
 import ConfirmModal from './ConfirmModal';
 import EditReservationModal from './EditReservationModal';
 import DiscountModal from './DiscountModal';
+import SendSmsModal from './SendSmsModal';
 import { useData } from '../context/DataContext';
 import { useToast } from '../context/ToastContext';
 import { toArabicError } from '../lib/errors';
@@ -27,6 +28,7 @@ export default function ReservationsBoard({ status, timeLabel, timeField, getAct
   const [busyKey, setBusyKey] = useState(null);
   const [editing, setEditing] = useState(false);
   const [discounting, setDiscounting] = useState(false);
+  const [smsFor, setSmsFor] = useState(null); // حجز تم تأكيده للتو
 
   // دوال ثابتة حتى لا تتغير النوافذ المفتوحة مع كل تحديث لحظي للبيانات
   const closeDetails = useCallback(() => setSelectedId(null), []);
@@ -58,6 +60,7 @@ export default function ReservationsBoard({ status, timeLabel, timeField, getAct
       await action.run(reservation);
       toast.success(action.success);
       setSelectedId(null);
+      if (action.offerSms) setSmsFor(reservation);
     } catch (err) {
       toast.error(toArabicError(err));
     } finally {
@@ -104,6 +107,8 @@ export default function ReservationsBoard({ status, timeLabel, timeField, getAct
       {editing && selected && <EditReservationModal key={selected.id} reservation={selected} onClose={closeEdit} />}
 
       {discounting && selected && <DiscountModal reservation={selected} onClose={closeDiscount} />}
+
+      <SendSmsModal reservation={smsFor} onClose={() => setSmsFor(null)} />
 
       <ConfirmModal
         open={!!pending}

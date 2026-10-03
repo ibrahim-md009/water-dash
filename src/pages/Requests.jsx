@@ -23,6 +23,7 @@ const getActions = () => [
     variant: 'primary',
     icon: CheckCircle2,
     success: 'تم تأكيد الحجز وإضافة سعره إلى الإحصائيات',
+    offerSms: true,
     run: (r) => confirmReservation(r.id),
   },
 ];

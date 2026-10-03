@@ -139,9 +139,9 @@ function buildSeries(reservations, filter, range, settings, meta, now) {
     const today = startOfDay(now);
     const spanDays = Math.round((today - min) / DAY);
     if (spanDays <= 62) {
-      const fmt = new Intl.DateTimeFormat('ar-u-nu-latn', { day: 'numeric', month: 'numeric' });
+      // LRI/PDI: نعزل التاريخ كي لا ينقلب ترتيب اليوم والشهر داخل الواجهة العربية (2/10 وليس 210/)
       for (let d = new Date(min); d <= today; d = new Date(d.getTime() + DAY)) {
-        add(startOfDay(d).toDateString(), fmt.format(d));
+        add(startOfDay(d).toDateString(), `\u2066${d.getDate()}/${d.getMonth() + 1}\u2069`);
       }
       keyOf = (d) => startOfDay(d).toDateString();
     } else {
@@ -151,7 +151,7 @@ function buildSeries(reservations, filter, range, settings, meta, now) {
         d <= today;
         d = new Date(d.getFullYear(), d.getMonth() + 1, 1)
       ) {
-        add(`${d.getFullYear()}-${d.getMonth()}`, fmt.format(d));
+        add(`${d.getFullYear()}-${d.getMonth()}`, `\u2068${fmt.format(d)}\u2069`);
       }
       keyOf = (d) => `${d.getFullYear()}-${d.getMonth()}`;
     }
