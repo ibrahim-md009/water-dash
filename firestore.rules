@@ -9,6 +9,11 @@ service cloud.firestore {
         exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
 
+    // رقم الأسبوع (يبدأ السبت 00:00 بتوقيت UTC+2) — مطابق لـ src/lib/week.js
+    function weekIdx(ts) {
+      return math.floor((math.floor((ts.toMillis() + 7200000) / 86400000) + 5) / 7);
+    }
+
     match /admins/{uid} {
       allow read: if request.auth != null && request.auth.uid == uid;
       allow write: if false;
@@ -35,12 +40,67 @@ service cloud.firestore {
       }
     }
 
+    // ───────── customers (العملاء والحد الأسبوعي) ─────────
+    // معرّف الوثيقة = رقم الهاتف الموحّد (أرقام فقط).
+    // قراءة وثيقة واحدة (get) متاحة للموقع ليعرف العميل حدّه، أما قائمة العملاء (list) فللمسؤول فقط.
+    // الزبون لا يحدد حدّه أبدًا: يُنشأ بالحد الافتراضي، ولا يستطيع بعدها إلا زيادة العدّاد
+    // خطوة واحدة داخل نفس العملية التي تُنشئ الحجز وبشرط ألا يتجاوز الحد.
+    match /customers/{cid} {
+      allow get: if true;
+      allow list: if isAdmin();
+      allow create: if isAdmin() || isValidCustomerCreate(cid);
+      allow update: if isAdmin() || isCustomerBump();
+      allow delete: if isAdmin();
+
+      function isValidCustomerCreate(custId) {
+        let a = request.resource.data;
+        let settings = get(/databases/$(database)/documents/settings/general).data;
+        return a.keys().hasOnly(['name', 'phone', 'weeklyLimit', 'blocked', 'weekCount',
+                                 'createdAt', 'updatedAt'])
+          && a.keys().hasAll(['name', 'phone', 'weeklyLimit', 'blocked', 'weekCount',
+                              'createdAt', 'updatedAt'])
+          && a.phone == custId
+          && a.phone.matches('[0-9]{7,15}')
+          && a.name is string && a.name.size() > 0 && a.name.size() <= 100
+          && a.weeklyLimit == settings.get('defaultWeeklyLimit', 3)
+          && a.blocked == false
+          && a.weekCount == 0
+          && a.createdAt == request.time
+          && a.updatedAt == request.time;
+      }
+
+      function isCustomerBump() {
+        let b = resource.data;
+        let a = request.resource.data;
+        let sameWeek = b.get('lastBookingAt', null) is timestamp
+                       && weekIdx(b.lastBookingAt) == weekIdx(request.time);
+        return a.diff(b).affectedKeys().hasOnly(['weekCount', 'lastBookingAt', 'updatedAt'])
+          && b.blocked == false
+          && a.lastBookingAt == request.time
+          && a.updatedAt == request.time
+          && a.weekCount is int
+          && a.weekCount >= 1
+          && a.weekCount <= b.weeklyLimit
+          && a.weekCount == (sameWeek ? b.weekCount + 1 : 1);
+      }
+    }
+
     // ───────── reservations ─────────
     // بيانات الزبائن (الهاتف، الوصل) للمسؤول فقط.
     // الزبون يستطيع إنشاء طلب pending فقط، بشرط أن يُخصم نفس العدد من الدقائق في نفس العملية.
+    // عندما يكون settings/general.requireCustomer = true يُشترط أيضًا أن يكون الزبون مسجّلًا
+    // وأن يُزاد عدّاده الأسبوعي (ضمن حدّه) في نفس العملية.
     match /reservations/{id} {
       allow read, update, delete: if isAdmin();
       allow create: if isAdmin() || isValidCustomerReservation();
+
+      function customerOk(d, settings) {
+        let cPath = /databases/$(database)/documents/customers/$(d.phone);
+        return !settings.get('requireCustomer', false)
+          || (exists(cPath)
+              && getAfter(cPath).data.lastBookingAt == request.time
+              && getAfter(cPath).data.weekCount >= 1);
+      }
 
       function isValidCustomerReservation() {
         let d = request.resource.data;
@@ -59,8 +119,14 @@ service cloud.firestore {
           && d.price is number
           && math.abs(d.price - (d.minutes * settings.pricePerCup / settings.minutesPerCup)) < 0.01
           && getAfter(availPath).data.availableMinutes ==
-               get(availPath).data.availableMinutes - d.minutes;
+               get(availPath).data.availableMinutes - d.minutes
+          && customerOk(d, settings);
       }
+    }
+
+    // ───────── expenses (المصروفات) — للمسؤول فقط ─────────
+    match /expenses/{id} {
+      allow read, write: if isAdmin();
     }
 
     // ───────── paymentMethods ─────────

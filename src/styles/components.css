@@ -1017,3 +1017,121 @@
   color: var(--accent);
   font-size: 1.15rem;
 }
+
+/* ───────── العملاء والمصروفات ───────── */
+.expense-card,
+.customer-card {
+  display: grid;
+  gap: 10px;
+  padding: 18px;
+}
+.expense-head,
+.customer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.expense-head h3,
+.customer-head h3 {
+  font-size: 1.05rem;
+}
+.expense-amount {
+  color: var(--danger-text, var(--text));
+  font-size: 1.1rem;
+  white-space: nowrap;
+}
+.expense-date {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-2);
+}
+.customer-card.is-blocked {
+  opacity: 0.8;
+  border-color: var(--border-strong, var(--border));
+}
+.customer-usage {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+}
+.customer-usage > div {
+  display: grid;
+  gap: 2px;
+}
+.customer-usage strong {
+  font-size: 1.15rem;
+}
+.search-box {
+  position: relative;
+  flex: 1 1 220px;
+  max-width: 420px;
+  display: block;
+}
+.search-box svg {
+  position: absolute;
+  inset-inline-start: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-2);
+  pointer-events: none;
+}
+.search-box .input {
+  padding-inline-start: 38px;
+}
+.inline-field {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+.inline-field .input {
+  flex: 1;
+  min-width: 0;
+}
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+.check-row input {
+  width: 18px;
+  height: 18px;
+}
+.enforce-box {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  color: var(--text-2);
+}
+.enforce-box > div {
+  flex: 1 1 220px;
+}
+.enforce-box.on {
+  border-style: solid;
+  border-color: var(--success, #10b981);
+  color: var(--text);
+}
+.import-alert {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.import-alert span {
+  flex: 1 1 220px;
+}
+.btn-sm {
+  min-height: 36px;
+  padding: 6px 12px;
+  font-size: 0.9rem;
+}

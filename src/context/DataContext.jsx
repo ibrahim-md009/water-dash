@@ -19,12 +19,13 @@ const byCreatedDesc = (a, b) => (toDate(b.createdAt)?.getTime() || 0) - (toDate(
 export function DataProvider({ children }) {
   const [availability, setAvailability] = useState([]);
   const [reservations, setReservations] = useState([]);
-  const [users, setUsers] = useState([]);
-  const [expenses, setExpenses] = useState([]);
   const [paymentMethods, setPaymentMethods] = useState([]);
   const [rawSettings, setRawSettings] = useState(null);
   const [rawStats, setRawStats] = useState(null);
-  const [ready, setReady] = useState({ availability: false, reservations: false, paymentMethods: false, settings: false, stats: false, users: false, expenses: false });
+  const [customers, setCustomers] = useState([]);
+  const [expenses, setExpenses] = useState([]);
+  const [extrasError, setExtrasError] = useState(false);
+  const [ready, setReady] = useState({ availability: false, reservations: false, paymentMethods: false, settings: false, stats: false, customers: false, expenses: false });
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -50,26 +51,6 @@ export function DataProvider({ children }) {
         onError,
       ),
       onSnapshot(
-        collection(db, COLLECTIONS.users),
-        (snap) => {
-          setUsers(mapDocs(snap).sort(byCreatedDesc));
-          markReady('users');
-        },
-        onError,
-      ),
-      onSnapshot(
-        collection(db, COLLECTIONS.expenses),
-        (snap) => {
-          setExpenses(mapDocs(snap).sort((a, b) => (toDate(b.date)?.getTime() || 0) - (toDate(a.date)?.getTime() || 0)));
-          markReady('expenses');
-        },
-        (err) => {
-          // لو قواعد expenses لم تُنشر بعد: لا نترك اللوحة معلّقة على التحميل
-          markReady('expenses');
-          onError(err);
-        },
-      ),
-      onSnapshot(
         collection(db, COLLECTIONS.paymentMethods),
         (snap) => {
           setPaymentMethods(mapDocs(snap).sort((a, b) => (a.order || 99) - (b.order || 99)));
@@ -93,6 +74,29 @@ export function DataProvider({ children }) {
         },
         onError,
       ),
+      // العملاء والمصروفات: إن فشلت القراءة (مثلًا القواعد لم تُنشر بعد) تبقى بقية اللوحة تعمل
+      onSnapshot(
+        collection(db, COLLECTIONS.customers),
+        (snap) => {
+          setCustomers(mapDocs(snap));
+          markReady('customers');
+        },
+        () => {
+          setExtrasError(true);
+          markReady('customers');
+        },
+      ),
+      onSnapshot(
+        collection(db, COLLECTIONS.expenses),
+        (snap) => {
+          setExpenses(mapDocs(snap));
+          markReady('expenses');
+        },
+        () => {
+          setExtrasError(true);
+          markReady('expenses');
+        },
+      ),
     ];
 
     ensureDefaults().catch(onError);
@@ -103,23 +107,26 @@ export function DataProvider({ children }) {
     () => ({
       resetAt: toDate(rawStats?.resetAt),
       adjustments: (rawStats?.adjustments || []).map((a) => ({ ...a, at: toDate(a.at) })),
+      // المصروفات تُخصم من الدخل في الإحصائيات
+      expenses: expenses.map((e) => ({ ...e, date: toDate(e.date) || toDate(e.createdAt) })),
     }),
-    [rawStats],
+    [rawStats, expenses],
   );
 
   const value = useMemo(
     () => ({
       availability,
       reservations,
-      users,
-      expenses,
       paymentMethods,
       settings: normalizeSettings(rawSettings),
       statsMeta,
+      customers,
+      expenses,
+      extrasError,
       loading: !Object.values(ready).every(Boolean),
       error,
     }),
-    [availability, reservations, users, expenses, paymentMethods, rawSettings, statsMeta, ready, error],
+    [availability, reservations, paymentMethods, rawSettings, statsMeta, customers, expenses, extrasError, ready, error],
   );
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

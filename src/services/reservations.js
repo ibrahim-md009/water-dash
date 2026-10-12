@@ -4,6 +4,9 @@ import { COLLECTIONS, SETTINGS_DOC } from '../config/app';
 import { RESERVATION_STATUS as S } from '../lib/constants';
 import { AppError } from '../lib/errors';
 import { calcPrice, normalizeSettings } from '../lib/pricing';
+import { toDate } from '../lib/format';
+import { canonicalPhone } from '../lib/phone';
+import { weekIndex } from '../lib/week';
 import {
   availabilityRef,
   buildAvailability,
@@ -153,6 +156,10 @@ async function releaseReservation(id, { from, to, timeField }) {
     const aRef = r.availabilityId ? availabilityRef(r.availabilityId) : null;
     const aSnap = aRef ? await tx.get(aRef) : null;
     const number = await readNextNumber(tx);
+    // سجل العميل (لإرجاع حجز من حدّه الأسبوعي)
+    const cPhone = canonicalPhone(r.phone);
+    const cRef = cPhone ? doc(db, COLLECTIONS.customers, cPhone) : null;
+    const cSnap = cRef ? await tx.get(cRef) : null;
 
     // ثم الكتابات
     tx.update(rRef, {
@@ -190,6 +197,16 @@ async function releaseReservation(id, { from, to, timeField }) {
       }),
     );
     writeNumber(tx, number);
+
+    // الرفض/الإلغاء يُرجع الحجز للعميل إن كان محسوبًا ضمن عدّاد أسبوعه الحالي
+    if (cSnap?.exists()) {
+      const c = cSnap.data();
+      const last = toDate(c.lastBookingAt);
+      const created = toDate(r.createdAt);
+      if (last && created && weekIndex(last) === weekIndex(created) && (Number(c.weekCount) || 0) > 0) {
+        tx.update(cRef, { weekCount: Number(c.weekCount) - 1, updatedAt: serverTimestamp() });
+      }
+    }
   });
 }
 

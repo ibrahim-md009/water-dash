@@ -83,7 +83,6 @@ export default function FactoryResetModal({ open, onClose }) {
           <ul className="reset-list">
             <li>كل الحجوزات (المعلّقة والمؤكدة والمنتهية)</li>
             <li>كل دفعات الدقائق وترقيمها</li>
-            <li>كل المصاريف المسجلة</li>
             <li>سعر الكوب وطرق الدفع (ترجع للقيم الافتراضية)</li>
           </ul>
         </div>

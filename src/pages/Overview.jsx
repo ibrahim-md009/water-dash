@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { CheckCircle2, Coins, GlassWater, Hourglass, Timer, Droplets, ChevronLeft, TrendingUp } from 'lucide-react';
+import { CheckCircle2, Coins, GlassWater, Hourglass, Timer, Droplets, ChevronLeft } from 'lucide-react';
 import StatCard from '../components/StatCard';
 import StatusBadge from '../components/StatusBadge';
 import LoadingState from '../components/LoadingState';
@@ -18,11 +18,11 @@ import { ClipboardList } from 'lucide-react';
 
 export default function Overview() {
   const navigate = useNavigate();
-  const { availability, reservations, expenses, settings, statsMeta, loading } = useData();
+  const { availability, reservations, settings, statsMeta, loading } = useData();
 
   const o = useMemo(
-    () => computeOverview(availability, reservations, settings, statsMeta, undefined, expenses),
-    [availability, reservations, expenses, settings, statsMeta],
+    () => computeOverview(availability, reservations, settings, statsMeta),
+    [availability, reservations, settings, statsMeta],
   );
 
   if (loading) return <LoadingState />;
@@ -75,15 +75,14 @@ export default function Overview() {
           label="إجمالي الدخل"
           value={o.income}
           unit="₪"
-          hint={o.pendingIncome > 0 ? `منه ${formatMoney(o.pendingIncome)} بانتظار الإنجاز` : `اليوم: ${formatMoney(o.today.income)}`}
+          hint={
+            o.expenses > 0
+              ? `الصافي بعد المصروفات: ${formatMoney(o.netIncome)}`
+              : o.pendingIncome > 0
+                ? `منه ${formatMoney(o.pendingIncome)} بانتظار الإنجاز`
+                : `اليوم: ${formatMoney(o.today.income)}`
+          }
           trend={o.trends.income}
-        />
-        <StatCard
-          icon={TrendingUp}
-          label="صافي الربح"
-          value={o.netProfit}
-          unit="₪"
-          hint={`بعد خصم مصاريف ${formatMoney(o.expenses)}`}
         />
       </section>
 
@@ -168,17 +167,9 @@ export default function Overview() {
               <dt>هذا الشهر</dt>
               <dd>{formatMoney(o.month.income)}</dd>
             </div>
-            <div>
-              <dt>إجمالي الدخل</dt>
-              <dd>{formatMoney(o.income)}</dd>
-            </div>
-            <div>
-              <dt>المصاريف</dt>
-              <dd>{formatMoney(o.expenses)}</dd>
-            </div>
             <div className="total">
-              <dt>صافي الربح</dt>
-              <dd>{formatMoney(o.netProfit)}</dd>
+              <dt>الإجمالي</dt>
+              <dd>{formatMoney(o.income)}</dd>
             </div>
           </dl>
         </section>

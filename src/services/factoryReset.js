@@ -1,4 +1,4 @@
-import { collection, doc, getDocs, writeBatch } from 'firebase/firestore';
+import { collection, doc, getDocs, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { db } from '../firebase';
 import { COLLECTIONS, COUNTERS_DOC, SETTINGS_DOC, STATS_DOC } from '../config/app';
 import { ensureDefaults } from './paymentMethods';
@@ -16,7 +16,7 @@ async function wipeCollection(name) {
 }
 
 /**
- * ضبط المصنع: يمسح الحجوزات والدقائق والمصاريف وطرق الدفع والإعدادات وعدّاد الترقيم،
+ * ضبط المصنع: يمسح الحجوزات والدقائق والمصروفات وطرق الدفع والإعدادات وعدّاد الترقيم (وتبقى حسابات العملاء مع تصفير عدّادهم)،
  * ثم يعيد القيم الافتراضية. وثائق المسؤولين (admins) لا تُمس أبدًا.
  * ملاحظة: صور الوصلات على Cloudinary لا يمكن حذفها من المتصفح وتبقى هناك.
  */
@@ -25,6 +25,14 @@ export async function factoryReset() {
   await wipeCollection(COLLECTIONS.availability);
   await wipeCollection(COLLECTIONS.paymentMethods);
   await wipeCollection(COLLECTIONS.expenses);
+
+  // العملاء المسجّلون يبقون (حساباتهم وحدودهم)، لكن عدّاد الأسبوع يُصفَّر لأن الحجوزات مُسحت
+  const customers = await getDocs(collection(db, COLLECTIONS.customers));
+  for (let i = 0; i < customers.docs.length; i += CHUNK) {
+    const b = writeBatch(db);
+    customers.docs.slice(i, i + CHUNK).forEach((d) => b.update(d.ref, { weekCount: 0, updatedAt: serverTimestamp() }));
+    await b.commit();
+  }
 
   const batch = writeBatch(db);
   batch.delete(doc(db, COLLECTIONS.settings, SETTINGS_DOC));

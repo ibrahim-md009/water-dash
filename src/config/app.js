@@ -15,6 +15,8 @@ export const WEEK_START_DAY = 6;
 export const DEFAULT_SETTINGS = {
   minutesPerCup: 20,
   pricePerCup: 10,
+  /** الحد الأسبوعي الافتراضي للعميل الجديد (يُغيَّر من صفحة العملاء) */
+  defaultWeeklyLimit: 3,
 };
 
 export const COLLECTIONS = {
@@ -23,7 +25,7 @@ export const COLLECTIONS = {
   paymentMethods: 'paymentMethods',
   settings: 'settings',
   admins: 'admins',
-  users: 'users',
+  customers: 'customers',
   expenses: 'expenses',
 };
 

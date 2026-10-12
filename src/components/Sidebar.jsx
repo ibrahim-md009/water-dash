@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   BarChart3,
-  Users,
   CheckCircle2,
   ClipboardList,
   CreditCard,
@@ -10,6 +9,7 @@ import {
   LogOut,
   PlusCircle,
   RotateCcw,
+  Users,
   Wallet,
 } from 'lucide-react';
 import FactoryResetModal from './FactoryResetModal';
@@ -25,8 +25,8 @@ const NAV = [
   { to: '/requests', label: 'طلبات الحجوزات', icon: ClipboardList, badge: true },
   { to: '/confirmed', label: 'الحجوزات المؤكدة', icon: CheckCircle2 },
   { to: '/statistics', label: 'الإحصائيات', icon: BarChart3 },
-  { to: '/expenses', label: 'المصاريف', icon: Wallet },
-  { to: '/users', label: 'المستخدمون', icon: Users },
+  { to: '/customers', label: 'العملاء', icon: Users },
+  { to: '/expenses', label: 'المصروفات', icon: Wallet },
   { to: '/payment-settings', label: 'إعدادات الدفع', icon: CreditCard },
 ];
 
