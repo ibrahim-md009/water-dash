@@ -23,6 +23,8 @@ export const COLLECTIONS = {
   paymentMethods: 'paymentMethods',
   settings: 'settings',
   admins: 'admins',
+  users: 'users',
+  expenses: 'expenses',
 };
 
 export const SETTINGS_DOC = 'general';

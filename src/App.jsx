@@ -12,6 +12,8 @@ import Requests from './pages/Requests';
 import Confirmed from './pages/Confirmed';
 import Statistics from './pages/Statistics';
 import PaymentSettings from './pages/PaymentSettings';
+import Users from './pages/Users';
+import Expenses from './pages/Expenses';
 import { APP_NAME, APP_TAGLINE } from './config/app';
 
 export default function App() {
@@ -34,6 +36,8 @@ export default function App() {
                   <Route path="confirmed" element={<Confirmed />} />
                   <Route path="statistics" element={<Statistics />} />
                   <Route path="payment-settings" element={<PaymentSettings />} />
+                  <Route path="expenses" element={<Expenses />} />
+                  <Route path="users" element={<Users />} />
                 </Route>
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />

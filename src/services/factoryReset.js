@@ -16,7 +16,7 @@ async function wipeCollection(name) {
 }
 
 /**
- * ضبط المصنع: يمسح الحجوزات والدقائق وطرق الدفع والإعدادات وعدّاد الترقيم،
+ * ضبط المصنع: يمسح الحجوزات والدقائق والمصاريف وطرق الدفع والإعدادات وعدّاد الترقيم،
  * ثم يعيد القيم الافتراضية. وثائق المسؤولين (admins) لا تُمس أبدًا.
  * ملاحظة: صور الوصلات على Cloudinary لا يمكن حذفها من المتصفح وتبقى هناك.
  */
@@ -24,6 +24,7 @@ export async function factoryReset() {
   await wipeCollection(COLLECTIONS.reservations);
   await wipeCollection(COLLECTIONS.availability);
   await wipeCollection(COLLECTIONS.paymentMethods);
+  await wipeCollection(COLLECTIONS.expenses);
 
   const batch = writeBatch(db);
   batch.delete(doc(db, COLLECTIONS.settings, SETTINGS_DOC));

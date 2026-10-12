@@ -12,6 +12,8 @@ const PAGES = {
   '/requests': { title: 'طلبات الحجوزات', description: 'الطلبات التي تنتظر موافقتك' },
   '/confirmed': { title: 'الحجوزات المؤكدة', description: 'حجوزات تم تأكيدها وتنتظر الإنجاز' },
   '/statistics': { title: 'الإحصائيات', description: 'أداء الحجوزات والدخل' },
+  '/expenses': { title: 'المصاريف', description: 'سجّل مصاريفك لتُخصم من الأرباح' },
+  '/users': { title: 'المستخدمون', description: 'المسجلون والحد الأسبوعي للحجز' },
   '/payment-settings': { title: 'إعدادات الدفع', description: 'سعر الكوب وطرق التحويل التي ستظهر للزبائن' },
 };
 

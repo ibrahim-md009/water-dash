@@ -57,8 +57,17 @@ function clampToReset(range, resetAt) {
   return { start: !range.start || resetAt > range.start ? resetAt : range.start, end: range.end };
 }
 
-/** مجموع كل الأرقام لفترة معيّنة (حجوزات + تصحيحات يدوية) */
-function aggregate(reservations, settings, meta, rawRange) {
+/** تاريخ المصروف (التاريخ الذي اختاره المسؤول، وإلا وقت الإنشاء) */
+export const expenseDate = (e) => toDate(e.date) || toDate(e.createdAt);
+
+/** المصاريف المحسوبة في فترة معيّنة (بعد آخر تصفير للإحصائيات) */
+export function expensesInRange(expenses, meta, filter, now = new Date()) {
+  const range = clampToReset(getRange(filter, now), meta?.resetAt);
+  return (expenses || []).filter((e) => inRange(expenseDate(e), range));
+}
+
+/** مجموع كل الأرقام لفترة معيّنة (حجوزات + مصاريف + تصحيحات يدوية) */
+function aggregate(reservations, settings, meta, rawRange, expenses = []) {
   const range = clampToReset(rawRange, meta?.resetAt);
   const t = {
     completedMinutes: 0,
@@ -70,6 +79,8 @@ function aggregate(reservations, settings, meta, rawRange) {
     completedCount: 0,
     cancelledCount: 0,
     rejectedCount: 0,
+    expenses: 0,
+    expensesCount: 0,
   };
 
   reservations.forEach((r) => {
@@ -92,6 +103,12 @@ function aggregate(reservations, settings, meta, rawRange) {
     }
   });
 
+  expenses.forEach((e) => {
+    if (!inRange(expenseDate(e), range)) return;
+    t.expenses += Number(e.amount) || 0;
+    t.expensesCount += 1;
+  });
+
   (meta?.adjustments || []).forEach((a) => {
     if (!inRange(a.at, range)) return;
     ['completedMinutes', 'cups', 'income', 'completedCount', 'cancelledCount', 'rejectedCount'].forEach((k) => {
@@ -103,6 +120,9 @@ function aggregate(reservations, settings, meta, rawRange) {
     ...t,
     cups: round2(t.cups),
     income: round2(t.income),
+    expenses: round2(t.expenses),
+    // صافي الربح = الدخل (بعد الخصم) − المصاريف
+    netProfit: round2(t.income - t.expenses),
     pendingIncome: round2(t.pendingIncome),
     discounts: round2(t.discounts),
   };
@@ -180,9 +200,9 @@ export function statsBetween(reservations, settings, meta, start, end) {
 }
 
 /** إحصائيات صفحة الإحصائيات حسب الفلتر (الأرقام المعروضة = المحسوبة + التعديلات اليدوية) */
-export function computeRangeStats(reservations, settings, meta, filter, now = new Date()) {
+export function computeRangeStats(reservations, settings, meta, filter, now = new Date(), expenses = []) {
   const range = getRange(filter, now);
-  const t = aggregate(reservations, settings, meta, range);
+  const t = aggregate(reservations, settings, meta, range, expenses);
   return { ...t, series: buildSeries(reservations, filter, range, settings, meta, now) };
 }
 
@@ -190,7 +210,7 @@ const percentChange = (current, previous) =>
   previous > 0 ? Math.round(((current - previous) / previous) * 100) : null;
 
 /** أرقام الصفحة الرئيسية */
-export function computeOverview(availability, reservations, settings, meta, now = new Date()) {
+export function computeOverview(availability, reservations, settings, meta, now = new Date(), expenses = []) {
   const liveAvailability = availability.filter((a) => a.status !== AVAILABILITY_STATUS.EMPTY);
   const availableMinutes = liveAvailability.reduce((s, a) => s + (Number(a.availableMinutes) || 0), 0);
   const availableBatches = liveAvailability.filter((a) => Number(a.availableMinutes) > 0).length;
@@ -199,10 +219,10 @@ export function computeOverview(availability, reservations, settings, meta, now 
   const confirmed = reservations.filter((r) => r.status === RESERVATION_STATUS.CONFIRMED);
   const sum = (list) => list.reduce((s, r) => s + (Number(r.minutes) || 0), 0);
 
-  const all = aggregate(reservations, settings, meta, { start: null, end: null });
-  const today = computeRangeStats(reservations, settings, meta, 'today', now);
-  const week = computeRangeStats(reservations, settings, meta, 'week', now);
-  const month = computeRangeStats(reservations, settings, meta, 'month', now);
+  const all = aggregate(reservations, settings, meta, { start: null, end: null }, expenses);
+  const today = computeRangeStats(reservations, settings, meta, 'today', now, expenses);
+  const week = computeRangeStats(reservations, settings, meta, 'week', now, expenses);
+  const month = computeRangeStats(reservations, settings, meta, 'month', now, expenses);
 
   // مقارنة الأسبوع الحالي حتى الآن بنفس المدة من الأسبوع السابق
   const weekRange = getRange('week', now);
@@ -225,6 +245,8 @@ export function computeOverview(availability, reservations, settings, meta, now 
     cups: all.cups,
     income: all.income,
     pendingIncome: all.pendingIncome,
+    expenses: all.expenses,
+    netProfit: all.netProfit,
     today,
     week,
     month,

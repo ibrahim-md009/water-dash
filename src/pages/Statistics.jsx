@@ -10,7 +10,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { Ban, CheckCheck, Coins, GlassWater, LineChart, Pencil, RotateCcw, Tag, Timer, XCircle } from 'lucide-react';
+import { Ban, CheckCheck, Coins, GlassWater, LineChart, Pencil, RotateCcw, Tag, Timer, TrendingUp, Wallet, XCircle } from 'lucide-react';
 import DateFilter from '../components/DateFilter';
 import EmptyState from '../components/EmptyState';
 import LoadingState from '../components/LoadingState';
@@ -75,7 +75,7 @@ function ChartCard({ title, unit, dataKey, series, type, color }) {
 }
 
 export default function Statistics() {
-  const { reservations, settings, statsMeta, loading } = useData();
+  const { reservations, expenses, settings, statsMeta, loading } = useData();
   const toast = useToast();
   const [filter, setFilter] = useState('month');
   const [editing, setEditing] = useState(false);
@@ -83,8 +83,8 @@ export default function Statistics() {
   const [resetBusy, setResetBusy] = useState(false);
 
   const stats = useMemo(
-    () => computeRangeStats(reservations, settings, statsMeta, filter),
-    [reservations, settings, statsMeta, filter],
+    () => computeRangeStats(reservations, settings, statsMeta, filter, undefined, expenses),
+    [reservations, expenses, settings, statsMeta, filter],
   );
   const periodLabel = STATS_FILTERS.find((f) => f.value === filter)?.label || '';
 
@@ -131,6 +131,14 @@ export default function Statistics() {
               unit="₪"
               hint={stats.pendingIncome > 0 ? `منه ${formatMoney(stats.pendingIncome)} مؤكد بانتظار الإنجاز` : 'يُحتسب من لحظة تأكيد الحجز'}
             />
+            <StatCard icon={Wallet} label="إجمالي المصاريف" value={stats.expenses} unit="₪" hint="تُضاف من صفحة المصاريف" />
+            <StatCard
+              icon={TrendingUp}
+              label="صافي الربح"
+              value={stats.netProfit}
+              unit="₪"
+              hint="الدخل − المصاريف"
+            />
             <StatCard icon={CheckCheck} label="الحجوزات المكتملة" value={stats.completedCount} unit="حجز" />
             <StatCard icon={Tag} label="إجمالي الخصومات" value={stats.discounts} unit="₪" />
             <StatCard icon={Ban} label="الحجوزات الملغاة" value={stats.cancelledCount} unit="حجز" />
@@ -157,7 +165,7 @@ export default function Statistics() {
       <ConfirmModal
         open={resetting}
         title="إعادة الإحصائيات للصفر"
-        message="ستعود كل الإحصائيات إلى الصفر (الدقائق والأكواب والدخل والخصومات والعدادات) ولن تُحسب إلا الحجوزات بعد الآن. الحجوزات نفسها لا تُحذف. هل أنت متأكد؟"
+        message="ستعود كل الإحصائيات إلى الصفر (الدقائق والأكواب والدخل والمصاريف والخصومات والعدادات) ولن تُحسب إلا الحجوزات بعد الآن. الحجوزات نفسها لا تُحذف. هل أنت متأكد؟"
         confirmLabel="نعم، صفّر الإحصائيات"
         danger
         loading={resetBusy}

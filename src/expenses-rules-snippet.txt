@@ -1,0 +1,5 @@
+    // ───────── expenses ─────────
+    // المصاريف للمسؤول فقط (قراءة وكتابة وحذف)
+    match /expenses/{id} {
+      allow read, write: if isAdmin();
+    }

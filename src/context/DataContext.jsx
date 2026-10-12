@@ -19,10 +19,12 @@ const byCreatedDesc = (a, b) => (toDate(b.createdAt)?.getTime() || 0) - (toDate(
 export function DataProvider({ children }) {
   const [availability, setAvailability] = useState([]);
   const [reservations, setReservations] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [expenses, setExpenses] = useState([]);
   const [paymentMethods, setPaymentMethods] = useState([]);
   const [rawSettings, setRawSettings] = useState(null);
   const [rawStats, setRawStats] = useState(null);
-  const [ready, setReady] = useState({ availability: false, reservations: false, paymentMethods: false, settings: false, stats: false });
+  const [ready, setReady] = useState({ availability: false, reservations: false, paymentMethods: false, settings: false, stats: false, users: false, expenses: false });
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -46,6 +48,26 @@ export function DataProvider({ children }) {
           markReady('reservations');
         },
         onError,
+      ),
+      onSnapshot(
+        collection(db, COLLECTIONS.users),
+        (snap) => {
+          setUsers(mapDocs(snap).sort(byCreatedDesc));
+          markReady('users');
+        },
+        onError,
+      ),
+      onSnapshot(
+        collection(db, COLLECTIONS.expenses),
+        (snap) => {
+          setExpenses(mapDocs(snap).sort((a, b) => (toDate(b.date)?.getTime() || 0) - (toDate(a.date)?.getTime() || 0)));
+          markReady('expenses');
+        },
+        (err) => {
+          // لو قواعد expenses لم تُنشر بعد: لا نترك اللوحة معلّقة على التحميل
+          markReady('expenses');
+          onError(err);
+        },
       ),
       onSnapshot(
         collection(db, COLLECTIONS.paymentMethods),
@@ -89,13 +111,15 @@ export function DataProvider({ children }) {
     () => ({
       availability,
       reservations,
+      users,
+      expenses,
       paymentMethods,
       settings: normalizeSettings(rawSettings),
       statsMeta,
       loading: !Object.values(ready).every(Boolean),
       error,
     }),
-    [availability, reservations, paymentMethods, rawSettings, statsMeta, ready, error],
+    [availability, reservations, users, expenses, paymentMethods, rawSettings, statsMeta, ready, error],
   );
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
