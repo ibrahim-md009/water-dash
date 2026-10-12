@@ -1,38 +1,19 @@
 import { useMemo, useState } from "react";
-import { Loader2, Save, Users as UsersIcon } from "lucide-react";
+import { Loader2, Save, Trash2, Users as UsersIcon } from "lucide-react";
 import { useData } from "../context/DataContext";
 import { useToast } from "../context/ToastContext";
-import { updateWeeklyLimit } from "../services/users";
+import { deleteUser, updateWeeklyLimit } from "../services/users";
 import { toArabicError } from "../lib/errors";
-import { formatDateTime, toDate } from "../lib/format";
-import { WEEK_START_DAY } from "../config/app";
+import { formatDateTime } from "../lib/format";
+import { weekIndex } from "../lib/week";
+import ConfirmModal from "../components/ConfirmModal";
 import EmptyState from "../components/EmptyState";
 import LoadingState from "../components/LoadingState";
 import ErrorState from "../components/ErrorState";
 
-/** بداية الأسبوع الحالي (حسب WEEK_START_DAY من الإعدادات) */
-function startOfWeek(now = new Date()) {
-  const d = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const diff = (d.getDay() - WEEK_START_DAY + 7) % 7;
-  d.setDate(d.getDate() - diff);
-  return d;
-}
-
-/** أرقام فقط، وآخر 9 أرقام عشان نتجاوز اختلاف كود الدولة (+20 / 0 ...) */
-function phoneKey(value) {
-  const digits = String(value ?? "").replace(/\D/g, "");
-  return digits.length > 9 ? digits.slice(-9) : digits;
-}
-
-/** عدد حجوزات المستخدم في الأسبوع الحالي — المطابقة برقم الهاتف */
-function weeklyCount(user, reservations, weekStart) {
-  const key = phoneKey(user.phone);
-  if (!key) return 0;
-  return reservations.filter((r) => {
-    if (phoneKey(r.phone) !== key) return false;
-    const d = toDate(r.createdAt);
-    return d && d >= weekStart;
-  }).length;
+/** عدد حجوزات المستخدم في الأسبوع الحالي — من العدّاد اللي الموقع بيحدّثه مع كل حجز */
+function usedThisWeek(user, week) {
+  return user.bookingWeek === week ? Number(user.bookingCount) || 0 : 0;
 }
 
 function isValidLimit(value) {
@@ -41,7 +22,7 @@ function isValidLimit(value) {
   return Number.isInteger(n) && n >= 0 && n <= 10;
 }
 
-function UserRow({ user, used, saving, draft, onDraft, onSave }) {
+function UserRow({ user, used, saving, draft, onDraft, onSave, onDelete }) {
   const savedLimit = user.weeklyBookingLimit ?? 1;
   const valid = isValidLimit(draft);
   const unchanged = valid && Number(draft) === savedLimit;
@@ -82,21 +63,33 @@ function UserRow({ user, used, saving, draft, onDraft, onSave }) {
           {saving ? <Loader2 size={16} className="spin" aria-hidden="true" /> : <Save size={16} aria-hidden="true" />}
           حفظ
         </button>
+        <button
+          type="button"
+          className="btn btn-ghost btn-icon btn-danger-ghost"
+          disabled={saving}
+          onClick={onDelete}
+          aria-label={`حذف المستخدم ${user.name || ""}`}
+          title="حذف المستخدم"
+        >
+          <Trash2 size={18} aria-hidden="true" />
+        </button>
       </div>
     </li>
   );
 }
 
 export default function Users() {
-  const { users, reservations, loading, error } = useData();
+  const { users, loading, error } = useData();
   const toast = useToast();
   const [query, setQuery] = useState("");
   const [drafts, setDrafts] = useState({}); // { [userId]: string }
   const [savingId, setSavingId] = useState("");
+  const [deleting, setDeleting] = useState(null); // المستخدم المطلوب حذفه
+  const [deleteBusy, setDeleteBusy] = useState(false);
 
-  // بيتحسب من جديد لما قائمة الحجوزات تتغير، فما يفضلش قديم لو الصفحة مفتوحة من أسبوع
+  // الأسبوع الحالي (يتحدّث مع كل تغيّر في بيانات المستخدمين)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const weekStart = useMemo(() => startOfWeek(), [reservations]);
+  const week = useMemo(() => weekIndex(), [users]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -129,6 +122,20 @@ export default function Users() {
       toast.error(toArabicError(err));
     } finally {
       setSavingId("");
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!deleting) return;
+    setDeleteBusy(true);
+    try {
+      await deleteUser(deleting.id);
+      toast.success(`تم حذف ${deleting.name || "المستخدم"}.`);
+    } catch (err) {
+      toast.error(toArabicError(err));
+    } finally {
+      setDeleteBusy(false);
+      setDeleting(null);
     }
   };
 
@@ -167,15 +174,31 @@ export default function Users() {
             <UserRow
               key={u.id}
               user={u}
-              used={weeklyCount(u, reservations, weekStart)}
+              used={usedThisWeek(u, week)}
               saving={savingId === u.id}
               draft={drafts[u.id] ?? String(u.weeklyBookingLimit ?? 1)}
               onDraft={(v) => setDraft(u.id, v)}
               onSave={() => save(u)}
+              onDelete={() => setDeleting(u)}
             />
           ))}
         </ul>
       )}
+
+      <ConfirmModal
+        open={!!deleting}
+        title="حذف المستخدم"
+        message={
+          deleting
+            ? `هل أنت متأكد من حذف ${deleting.name || "هذا المستخدم"} (${deleting.phone || "—"})؟ حجوزاته السابقة لن تتأثر، وبإمكانه التسجيل من جديد بنفس الرقم.`
+            : ""
+        }
+        confirmLabel="نعم، احذفه"
+        danger
+        loading={deleteBusy}
+        onCancel={() => setDeleting(null)}
+        onConfirm={confirmDelete}
+      />
     </section>
   );
 }

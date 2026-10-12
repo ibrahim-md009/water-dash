@@ -1,4 +1,4 @@
-import { doc, updateDoc } from "firebase/firestore";
+import { deleteDoc, doc, updateDoc } from "firebase/firestore";
 import { db } from "../firebase";
 import { COLLECTIONS } from "../config/app";
 import { AppError } from "../lib/errors";
@@ -23,4 +23,17 @@ export async function updateWeeklyLimit(userId, limit) {
     throw new AppError("الحد الأسبوعي يجب أن يكون رقمًا صحيحًا بين 0 و 10.");
   }
   await updateDoc(doc(db, COLLECTIONS.users, userId), { weeklyBookingLimit: n });
+}
+
+/**
+ * حذف وثيقة المستخدم من Firestore (يختفي من القائمة).
+ * ملاحظة: حساب الدخول نفسه في Firebase Authentication لا يمكن حذفه من المتصفح،
+ * فلو المستخدم سجّل بنفس الرقم مرة تانية بيرجع للقائمة كمستخدم جديد.
+ * الحجوزات السابقة لا تُمس.
+ */
+export async function deleteUser(userId) {
+  if (!userId) {
+    throw new AppError("مستخدم غير معروف.");
+  }
+  await deleteDoc(doc(db, COLLECTIONS.users, userId));
 }
