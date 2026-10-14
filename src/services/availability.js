@@ -38,6 +38,7 @@ export function buildAvailability({
   minutes,
   dateText,
   notes = '',
+  visible = true,
   origin = 'admin',
   sourceReservationId = null,
 }) {
@@ -49,6 +50,7 @@ export function buildAvailability({
     completedMinutes: 0,
     dateText,
     notes,
+    visible,
     status: AVAILABILITY_STATUS.AVAILABLE,
     origin,
     sourceReservationId,
@@ -69,8 +71,8 @@ function validateBatch({ minutes, dateText }) {
   return { total, when };
 }
 
-/** إضافة دفعة دقائق جديدة بسجل مستقل */
-export async function addAvailability({ minutes, dateText, notes }) {
+/** إضافة دفعة دقائق جديدة بسجل مستقل (visible: هل تظهر للعملاء في الموقع) */
+export async function addAvailability({ minutes, dateText, notes, visible = true }) {
   const { total, when } = validateBatch({ minutes, dateText });
 
   const ref = newAvailabilityRef();
@@ -78,7 +80,13 @@ export async function addAvailability({ minutes, dateText, notes }) {
     const number = await readNextNumber(tx);
     tx.set(
       ref,
-      buildAvailability({ number, minutes: total, dateText: when, notes: (notes || '').trim() }),
+      buildAvailability({
+        number,
+        minutes: total,
+        dateText: when,
+        notes: (notes || '').trim(),
+        visible: visible !== false,
+      }),
     );
     writeNumber(tx, number);
   });
@@ -86,11 +94,11 @@ export async function addAvailability({ minutes, dateText, notes }) {
 }
 
 /**
- * تعديل دفعة موجودة (الدقائق الإجمالية، الموعد، الملاحظات).
+ * تعديل دفعة موجودة (الدقائق الإجمالية، الموعد، الملاحظات، الظهور للعملاء).
  * المحجوز والمنجز لا يتغيّران، والمتاح = الإجمالي − المحجوز − المنجز.
  * تتم العملية داخل Transaction حتى لا تتعارض مع حجز يصل في نفس اللحظة.
  */
-export async function updateAvailability(id, { minutes, dateText, notes }) {
+export async function updateAvailability(id, { minutes, dateText, notes, visible = true }) {
   const { total, when } = validateBatch({ minutes, dateText });
   const ref = availabilityRef(id);
 
@@ -112,6 +120,7 @@ export async function updateAvailability(id, { minutes, dateText, notes }) {
       availableMinutes: available,
       dateText: when,
       notes: (notes || '').trim(),
+      visible: visible !== false,
       status: computeAvailabilityStatus({
         totalMinutes: total,
         availableMinutes: available,

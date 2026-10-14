@@ -3,6 +3,7 @@ import { Loader2 } from 'lucide-react';
 import Modal from './Modal';
 import { useToast } from '../context/ToastContext';
 import { toArabicError } from '../lib/errors';
+import { UNLIMITED_MINUTES } from '../config/app';
 import { createCustomer, saveCustomer } from '../services/customers';
 
 /** إضافة عميل (customer = null) أو تعديل عميل موجود */
@@ -19,7 +20,7 @@ export default function CustomerModal({ open, customer, defaultLimit, onClose })
     if (!open) return;
     setName(customer?.name || '');
     setPhone(customer?.phone || '');
-    setLimit(String(customer ? customer.weeklyLimit : defaultLimit));
+    setLimit(String(customer ? customer.weeklyMinutes ?? defaultLimit : defaultLimit));
     setBlocked(!!customer?.blocked);
     setError('');
   }, [open, customer, defaultLimit]);
@@ -30,8 +31,8 @@ export default function CustomerModal({ open, customer, defaultLimit, onClose })
     setLoading(true);
     setError('');
     try {
-      if (customer) await saveCustomer(customer.id, { name, weeklyLimit: limit, blocked });
-      else await createCustomer({ name, phone, weeklyLimit: limit });
+      if (customer) await saveCustomer(customer.id, { name, weeklyMinutes: limit, blocked });
+      else await createCustomer({ name, phone, weeklyMinutes: limit });
       toast.success(customer ? 'تم حفظ بيانات العميل' : 'تمت إضافة العميل');
       onClose();
     } catch (err) {
@@ -79,14 +80,14 @@ export default function CustomerModal({ open, customer, defaultLimit, onClose })
           {customer && <span className="field-hint">الرقم هو هوية العميل ولا يمكن تعديله.</span>}
         </div>
         <div className="field">
-          <label htmlFor="cu-limit">الحد الأسبوعي (عدد الحجوزات)</label>
+          <label htmlFor="cu-limit">الحد الأسبوعي (بالدقائق)</label>
           <div className="inline-field">
-            <input id="cu-limit" className="input" type="number" inputMode="numeric" min="0" max="999" step="1" value={limit} onChange={(e) => setLimit(e.target.value)} disabled={loading} />
-            <button type="button" className="btn btn-ghost" onClick={() => setLimit('999')} disabled={loading}>
+            <input id="cu-limit" className="input" type="number" inputMode="numeric" min="0" max={UNLIMITED_MINUTES} step="1" value={limit} onChange={(e) => setLimit(e.target.value)} disabled={loading} />
+            <button type="button" className="btn btn-ghost" onClick={() => setLimit(String(UNLIMITED_MINUTES))} disabled={loading}>
               بدون حد
             </button>
           </div>
-          <span className="field-hint">0 = لا يستطيع الحجز. يتجدد العدّاد كل يوم سبت.</span>
+          <span className="field-hint">0 = لا يستطيع الحجز. تتجدد الدقائق كل يوم سبت.</span>
         </div>
         {customer && (
           <label className="check-row">

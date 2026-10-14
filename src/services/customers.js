@@ -1,6 +1,6 @@
 import { doc, getDoc, serverTimestamp, setDoc, updateDoc, deleteDoc, Timestamp, writeBatch } from 'firebase/firestore';
 import { db } from '../firebase';
-import { COLLECTIONS, SETTINGS_DOC } from '../config/app';
+import { COLLECTIONS, SETTINGS_DOC, UNLIMITED_MINUTES } from '../config/app';
 import { AppError } from '../lib/errors';
 import { toDate } from '../lib/format';
 import { canonicalPhone, validatePhone } from '../lib/phone';
@@ -12,12 +12,14 @@ const CHUNK = 400;
 
 function cleanLimit(value) {
   const n = Number(value);
-  if (!Number.isInteger(n) || n < 0 || n > 999) throw new AppError('الحد الأسبوعي يجب أن يكون رقمًا صحيحًا من 0 إلى 999.');
+  if (!Number.isInteger(n) || n < 0 || n > UNLIMITED_MINUTES) {
+    throw new AppError(`الحد الأسبوعي يجب أن يكون عدد دقائق صحيحًا من 0 إلى ${UNLIMITED_MINUTES}.`);
+  }
   return n;
 }
 
 /** إضافة عميل يدويًا من المسؤول */
-export async function createCustomer({ name, phone, weeklyLimit }) {
+export async function createCustomer({ name, phone, weeklyMinutes }) {
   const cleanName = (name || '').trim();
   if (!cleanName) throw new AppError('الاسم مطلوب.');
   if (cleanName.length > 100) throw new AppError('الاسم طويل جدًا.');
@@ -29,22 +31,22 @@ export async function createCustomer({ name, phone, weeklyLimit }) {
   await setDoc(customerRef(id), {
     name: cleanName,
     phone: id,
-    weeklyLimit: cleanLimit(weeklyLimit),
+    weeklyMinutes: cleanLimit(weeklyMinutes),
     blocked: false,
-    weekCount: 0,
+    weekMinutes: 0,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
 }
 
 /** تعديل الاسم والحد الأسبوعي والحظر (الرقم هو المعرّف ولا يُعدَّل) */
-export async function saveCustomer(id, { name, weeklyLimit, blocked }) {
+export async function saveCustomer(id, { name, weeklyMinutes, blocked }) {
   const cleanName = (name || '').trim();
   if (!cleanName) throw new AppError('الاسم مطلوب.');
   if (cleanName.length > 100) throw new AppError('الاسم طويل جدًا.');
   await updateDoc(customerRef(id), {
     name: cleanName,
-    weeklyLimit: cleanLimit(weeklyLimit),
+    weeklyMinutes: cleanLimit(weeklyMinutes),
     blocked: !!blocked,
     updatedAt: serverTimestamp(),
   });
@@ -52,7 +54,7 @@ export async function saveCustomer(id, { name, weeklyLimit, blocked }) {
 
 /** تصفير عدّاد هذا الأسبوع للعميل */
 export async function resetCustomerWeek(id) {
-  await updateDoc(customerRef(id), { weekCount: 0, updatedAt: serverTimestamp() });
+  await updateDoc(customerRef(id), { weekMinutes: 0, updatedAt: serverTimestamp() });
 }
 
 export async function deleteCustomer(id) {
@@ -60,19 +62,19 @@ export async function deleteCustomer(id) {
 }
 
 /** إعدادات العملاء: الحد الافتراضي + إلزام التسجيل (settings/general) */
-export async function saveCustomerSettings({ defaultWeeklyLimit, requireCustomer }) {
+export async function saveCustomerSettings({ defaultWeeklyMinutes, requireCustomer }) {
   const patch = { updatedAt: serverTimestamp() };
-  if (defaultWeeklyLimit !== undefined) patch.defaultWeeklyLimit = cleanLimit(defaultWeeklyLimit);
+  if (defaultWeeklyMinutes !== undefined) patch.defaultWeeklyMinutes = cleanLimit(defaultWeeklyMinutes);
   if (requireCustomer !== undefined) patch.requireCustomer = !!requireCustomer;
   await setDoc(doc(db, COLLECTIONS.settings, SETTINGS_DOC), patch, { merge: true });
 }
 
 /**
  * ينشئ سجلات للعملاء الموجودين في الحجوزات السابقة (ولا يلمس أي سجل موجود).
- * عدّاد الأسبوع يُحسب من حجوزاتهم الفعلية هذا الأسبوع (قيد المراجعة/مؤكدة/منجزة).
+ * دقائق الأسبوع تُحسب من حجوزاتهم الفعلية هذا الأسبوع (قيد المراجعة/مؤكدة/منجزة).
  * يعيد عدد السجلات الجديدة.
  */
-export async function importCustomersFromReservations(reservations, existingIds, defaultWeeklyLimit) {
+export async function importCustomersFromReservations(reservations, existingIds, defaultWeeklyMinutes) {
   const known = new Set(existingIds);
   const nowWeek = weekIndex(new Date());
   const groups = new Map();
@@ -83,7 +85,7 @@ export async function importCustomersFromReservations(reservations, existingIds,
     const created = toDate(r.createdAt);
     let g = groups.get(id);
     if (!g) {
-      g = { name: '', nameAt: 0, count: 0, last: null };
+      g = { name: '', nameAt: 0, minutes: 0, last: null };
       groups.set(id, g);
     }
     const at = created?.getTime() || 0;
@@ -93,7 +95,7 @@ export async function importCustomersFromReservations(reservations, existingIds,
     }
     const counts = [S.PENDING, S.CONFIRMED, S.COMPLETED].includes(r.status);
     if (counts && created && weekIndex(created) === nowWeek) {
-      g.count += 1;
+      g.minutes += Number(r.minutes) || 0;
       if (!g.last || created > g.last) g.last = created;
     }
   });
@@ -105,9 +107,9 @@ export async function importCustomersFromReservations(reservations, existingIds,
       const data = {
         name: g.name,
         phone: id,
-        weeklyLimit: cleanLimit(defaultWeeklyLimit),
+        weeklyMinutes: cleanLimit(defaultWeeklyMinutes),
         blocked: false,
-        weekCount: g.count,
+        weekMinutes: g.minutes,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       };

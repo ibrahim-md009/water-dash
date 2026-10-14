@@ -5,6 +5,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import EditAvailabilityModal from '../components/EditAvailabilityModal';
 import EmptyState from '../components/EmptyState';
 import LoadingState from '../components/LoadingState';
+import VisibilitySwitch from '../components/VisibilitySwitch';
 import { useData } from '../context/DataContext';
 import { useToast } from '../context/ToastContext';
 import { addAvailability, deleteAvailability } from '../services/availability';
@@ -12,7 +13,7 @@ import { toArabicError } from '../lib/errors';
 import { calcCups, calcPrice } from '../lib/pricing';
 import { formatAvailabilityNumber, formatMoney, formatNumber } from '../lib/format';
 
-const INITIAL = { minutes: '', dateText: '', notes: '' };
+const INITIAL = { minutes: '', dateText: '', notes: '', visible: true };
 const RECENT_LIMIT = 12;
 
 export default function AddMinutes() {
@@ -138,6 +139,14 @@ export default function AddMinutes() {
               placeholder="مثال: تعبئة الفترة المسائية"
               value={form.notes}
               onChange={set('notes')}
+            />
+          </div>
+
+          <div className="field field-wide">
+            <VisibilitySwitch
+              checked={form.visible}
+              onChange={(visible) => setForm((f) => ({ ...f, visible }))}
+              disabled={saving}
             />
           </div>
 

@@ -3,14 +3,14 @@ import { DEFAULT_SETTINGS } from '../config/app';
 export function normalizeSettings(raw) {
   const minutesPerCup = Number(raw?.minutesPerCup);
   const pricePerCup = Number(raw?.pricePerCup);
-  const defaultWeeklyLimit = Number(raw?.defaultWeeklyLimit);
+  const defaultWeeklyMinutes = Number(raw?.defaultWeeklyMinutes);
   return {
     minutesPerCup: minutesPerCup > 0 ? minutesPerCup : DEFAULT_SETTINGS.minutesPerCup,
     pricePerCup: pricePerCup >= 0 ? pricePerCup : DEFAULT_SETTINGS.pricePerCup,
-    defaultWeeklyLimit:
-      Number.isInteger(defaultWeeklyLimit) && defaultWeeklyLimit >= 0
-        ? defaultWeeklyLimit
-        : DEFAULT_SETTINGS.defaultWeeklyLimit,
+    defaultWeeklyMinutes:
+      Number.isInteger(defaultWeeklyMinutes) && defaultWeeklyMinutes >= 0
+        ? defaultWeeklyMinutes
+        : DEFAULT_SETTINGS.defaultWeeklyMinutes,
     requireCustomer: raw?.requireCustomer === true,
   };
 }

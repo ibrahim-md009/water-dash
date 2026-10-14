@@ -30,7 +30,7 @@ export async function factoryReset() {
   const customers = await getDocs(collection(db, COLLECTIONS.customers));
   for (let i = 0; i < customers.docs.length; i += CHUNK) {
     const b = writeBatch(db);
-    customers.docs.slice(i, i + CHUNK).forEach((d) => b.update(d.ref, { weekCount: 0, updatedAt: serverTimestamp() }));
+    customers.docs.slice(i, i + CHUNK).forEach((d) => b.update(d.ref, { weekMinutes: 0, updatedAt: serverTimestamp() }));
     await b.commit();
   }
 

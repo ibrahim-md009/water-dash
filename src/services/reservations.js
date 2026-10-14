@@ -198,13 +198,14 @@ async function releaseReservation(id, { from, to, timeField }) {
     );
     writeNumber(tx, number);
 
-    // الرفض/الإلغاء يُرجع الحجز للعميل إن كان محسوبًا ضمن عدّاد أسبوعه الحالي
+    // الرفض/الإلغاء يُرجع دقائق الحجز للعميل إن كانت محسوبة ضمن أسبوعه الحالي
     if (cSnap?.exists()) {
       const c = cSnap.data();
       const last = toDate(c.lastBookingAt);
       const created = toDate(r.createdAt);
-      if (last && created && weekIndex(last) === weekIndex(created) && (Number(c.weekCount) || 0) > 0) {
-        tx.update(cRef, { weekCount: Number(c.weekCount) - 1, updatedAt: serverTimestamp() });
+      const used = Number(c.weekMinutes) || 0;
+      if (last && created && weekIndex(last) === weekIndex(created) && used > 0) {
+        tx.update(cRef, { weekMinutes: Math.max(0, used - minutes), updatedAt: serverTimestamp() });
       }
     }
   });

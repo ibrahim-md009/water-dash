@@ -3,23 +3,24 @@ import { Loader2, ShieldCheck } from 'lucide-react';
 import ConfirmModal from './ConfirmModal';
 import { useToast } from '../context/ToastContext';
 import { toArabicError } from '../lib/errors';
+import { UNLIMITED_MINUTES } from '../config/app';
 import { saveCustomerSettings } from '../services/customers';
 
 /** الحد الأسبوعي الافتراضي + مفتاح إلزام التسجيل (settings/general) */
 export default function CustomerSettingsCard({ settings }) {
   const toast = useToast();
-  const [limit, setLimit] = useState(String(settings.defaultWeeklyLimit));
+  const [limit, setLimit] = useState(String(settings.defaultWeeklyMinutes));
   const [saving, setSaving] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [toggling, setToggling] = useState(false);
 
-  useEffect(() => setLimit(String(settings.defaultWeeklyLimit)), [settings.defaultWeeklyLimit]);
+  useEffect(() => setLimit(String(settings.defaultWeeklyMinutes)), [settings.defaultWeeklyMinutes]);
 
   const saveLimit = async (e) => {
     e.preventDefault();
     setSaving(true);
     try {
-      await saveCustomerSettings({ defaultWeeklyLimit: limit });
+      await saveCustomerSettings({ defaultWeeklyMinutes: limit });
       toast.success('تم حفظ الحد الافتراضي');
     } catch (err) {
       toast.error(toArabicError(err));
@@ -49,15 +50,15 @@ export default function CustomerSettingsCard({ settings }) {
 
       <form className="form" onSubmit={saveLimit}>
         <div className="field">
-          <label htmlFor="def-limit">الحد الأسبوعي الافتراضي للعميل الجديد</label>
+          <label htmlFor="def-limit">الحد الأسبوعي الافتراضي للعميل الجديد (بالدقائق)</label>
           <div className="inline-field">
-            <input id="def-limit" className="input" type="number" inputMode="numeric" min="0" max="999" step="1" value={limit} onChange={(e) => setLimit(e.target.value)} disabled={saving} />
+            <input id="def-limit" className="input" type="number" inputMode="numeric" min="0" max={UNLIMITED_MINUTES} step="1" value={limit} onChange={(e) => setLimit(e.target.value)} disabled={saving} />
             <button type="submit" className="btn btn-primary" disabled={saving}>
               {saving && <Loader2 size={18} className="spin" aria-hidden="true" />}
               حفظ
             </button>
           </div>
-          <span className="field-hint">يُطبَّق على من يسجّل بعد الآن. العملاء الحاليون لا يتغير حدّهم.</span>
+          <span className="field-hint">يُطبَّق على من يسجّل بعد الآن، وعلى العملاء القدامى الذين لم يُحدَّد لهم حد بالدقائق بعد.</span>
         </div>
       </form>
 

@@ -1,6 +1,7 @@
 import { useId, useState } from 'react';
 import { Loader2, Save } from 'lucide-react';
 import Modal from './Modal';
+import VisibilitySwitch from './VisibilitySwitch';
 import { useData } from '../context/DataContext';
 import { useToast } from '../context/ToastContext';
 import { updateAvailability } from '../services/availability';
@@ -17,6 +18,7 @@ export default function EditAvailabilityModal({ availability: a, onClose }) {
     minutes: String(a.totalMinutes ?? ''),
     dateText: a.dateText || '',
     notes: a.notes || '',
+    visible: a.visible !== false,
   });
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
@@ -129,6 +131,12 @@ export default function EditAvailabilityModal({ availability: a, onClose }) {
             onChange={set('notes')}
           />
         </div>
+
+        <VisibilitySwitch
+          checked={form.visible}
+          onChange={(visible) => setForm((f) => ({ ...f, visible }))}
+          disabled={saving}
+        />
       </form>
     </Modal>
   );

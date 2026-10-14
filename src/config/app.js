@@ -15,8 +15,8 @@ export const WEEK_START_DAY = 6;
 export const DEFAULT_SETTINGS = {
   minutesPerCup: 20,
   pricePerCup: 10,
-  /** الحد الأسبوعي الافتراضي للعميل الجديد (يُغيَّر من صفحة العملاء) */
-  defaultWeeklyLimit: 3,
+  /** الحد الأسبوعي الافتراضي بالدقائق للعميل الجديد (يُضبط من الداش) */
+  defaultWeeklyMinutes: 60,
 };
 
 export const COLLECTIONS = {
@@ -40,3 +40,6 @@ export const DEFAULT_PAYMENT_METHODS = [
   { id: 'palpay', name: 'PalPay', order: 2 },
   { id: 'bank-of-palestine', name: 'Bank of Palestine', order: 3 },
 ];
+
+/** قيمة الحد الأسبوعي التي تعني «بدون حد» */
+export const UNLIMITED_MINUTES = 99999;

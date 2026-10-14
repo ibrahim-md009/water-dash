@@ -369,3 +369,16 @@ button {
 .switch-text {
   min-width: 48px;
 }
+
+/* مفتاح إظهار الدقائق للعملاء */
+.field-visibility {
+  display: grid;
+  gap: 6px;
+}
+.field-visibility .switch {
+  margin-inline-start: 0;
+  justify-self: start;
+}
+.field-visibility .switch-text {
+  min-width: 0;
+}

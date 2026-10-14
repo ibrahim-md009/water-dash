@@ -13,6 +13,7 @@ import { toArabicError } from '../lib/errors';
 import { toDate } from '../lib/format';
 import { canonicalPhone } from '../lib/phone';
 import { isSameWeek } from '../lib/week';
+import { UNLIMITED_MINUTES } from '../config/app';
 import { deleteCustomer, importCustomersFromReservations, resetCustomerWeek } from '../services/customers';
 
 const norm = (s) => String(s || '').toLowerCase();
@@ -42,12 +43,13 @@ export default function Customers() {
     const q = norm(query).trim();
     return customers
       .map((c) => {
-        const used = isSameWeek(toDate(c.lastBookingAt), now) ? Number(c.weekCount) || 0 : 0;
-        return { ...c, used, remaining: Math.max(0, (Number(c.weeklyLimit) || 0) - used), total: totals.get(c.id) || 0 };
+        const used = isSameWeek(toDate(c.lastBookingAt), now) ? Number(c.weekMinutes) || 0 : 0;
+        const limit = Number(c.weeklyMinutes ?? settings.defaultWeeklyMinutes) || 0;
+        return { ...c, used, limit, remaining: Math.max(0, limit - used), total: totals.get(c.id) || 0 };
       })
       .filter((c) => !q || norm(c.name).includes(q) || c.phone.includes(q))
       .sort((a, b) => (toDate(b.createdAt)?.getTime() || 0) - (toDate(a.createdAt)?.getTime() || 0));
-  }, [customers, totals, query]);
+  }, [customers, totals, query, settings.defaultWeeklyMinutes]);
 
   const missingCount = useMemo(() => {
     const known = new Set(customers.map((c) => c.id));
@@ -58,7 +60,7 @@ export default function Customers() {
   const onImport = async () => {
     setImporting(true);
     try {
-      const n = await importCustomersFromReservations(reservations, customers.map((c) => c.id), settings.defaultWeeklyLimit);
+      const n = await importCustomersFromReservations(reservations, customers.map((c) => c.id), settings.defaultWeeklyMinutes);
       toast.success(n > 0 ? `تم استيراد ${n} عميل` : 'لا يوجد عملاء جدد للاستيراد');
     } catch (err) {
       toast.error(toArabicError(err));
@@ -70,7 +72,7 @@ export default function Customers() {
   const onReset = async (c) => {
     try {
       await resetCustomerWeek(c.id);
-      toast.success('تم تصفير عدّاد الأسبوع');
+      toast.success('تم تصفير دقائق الأسبوع');
     } catch (err) {
       toast.error(toArabicError(err));
     }
@@ -102,7 +104,7 @@ export default function Customers() {
       {missingCount > 0 && (
         <div className="alert import-alert">
           <DownloadCloud size={20} aria-hidden="true" />
-          <span>يوجد {missingCount} عميل في الحجوزات السابقة بدون سجل. استوردهم ليظهروا هنا ويُحسب حدّهم الأسبوعي.</span>
+          <span>يوجد {missingCount} عميل في الحجوزات السابقة بدون سجل. استوردهم ليظهروا هنا وتُحسب دقائقهم الأسبوعية.</span>
           <button type="button" className="btn btn-primary btn-sm" onClick={onImport} disabled={importing}>
             {importing ? 'جارٍ الاستيراد...' : 'استيراد العملاء'}
           </button>
@@ -153,7 +155,7 @@ export default function Customers() {
                 <div>
                   <span className="field-hint">هذا الأسبوع</span>
                   <strong>
-                    {c.used} / {c.weeklyLimit >= 999 ? '∞' : c.weeklyLimit}
+                    {c.used} / {c.limit >= UNLIMITED_MINUTES ? '∞' : c.limit} دقيقة
                   </strong>
                 </div>
                 <div>
@@ -165,7 +167,7 @@ export default function Customers() {
                 <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditing(c)}>
                   <Pencil size={16} aria-hidden="true" /> تعديل
                 </button>
-                <button type="button" className="btn btn-ghost btn-sm" onClick={() => onReset(c)} disabled={c.used === 0} title="تصفير عدّاد هذا الأسبوع">
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => onReset(c)} disabled={c.used === 0} title="تصفير دقائق هذا الأسبوع">
                   <RotateCcw size={16} aria-hidden="true" /> تصفير
                 </button>
                 <button type="button" className="btn btn-danger-ghost btn-sm" onClick={() => setDeleting(c)}>
@@ -180,7 +182,7 @@ export default function Customers() {
       <CustomerModal
         open={!!editing}
         customer={editing === 'new' ? null : editing}
-        defaultLimit={settings.defaultWeeklyLimit}
+        defaultLimit={settings.defaultWeeklyMinutes}
         onClose={() => setEditing(null)}
       />
       <ConfirmModal
