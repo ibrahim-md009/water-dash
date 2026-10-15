@@ -1,4 +1,4 @@
-import { CalendarClock, EyeOff, Pencil, RotateCcw, StickyNote, Trash2 } from 'lucide-react';
+import { CalendarClock, Eye, EyeOff, Pencil, RotateCcw, StickyNote, Trash2 } from 'lucide-react';
 import StatusBadge from './StatusBadge';
 import { formatAvailabilityNumber, formatDateTime, formatMinutes, formatNumber } from '../lib/format';
 
@@ -49,12 +49,10 @@ export default function AvailabilityCard({ availability: a, onEdit, onDelete }) 
             <span>{a.notes}</span>
           </li>
         )}
-        {a.visible === false && (
-          <li>
-            <EyeOff size={16} aria-hidden="true" />
-            <span>مخفية عن العملاء</span>
-          </li>
-        )}
+        <li>
+          {a.showMinutes === true ? <Eye size={16} aria-hidden="true" /> : <EyeOff size={16} aria-hidden="true" />}
+          <span>{a.showMinutes === true ? 'الدقائق ظاهرة للعملاء' : 'الدقائق مخفية عن العملاء'}</span>
+        </li>
         {a.origin === 'returned' && (
           <li className="returned">
             <RotateCcw size={16} aria-hidden="true" />

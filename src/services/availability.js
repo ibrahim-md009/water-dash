@@ -38,7 +38,7 @@ export function buildAvailability({
   minutes,
   dateText,
   notes = '',
-  visible = true,
+  showMinutes = false,
   origin = 'admin',
   sourceReservationId = null,
 }) {
@@ -50,7 +50,7 @@ export function buildAvailability({
     completedMinutes: 0,
     dateText,
     notes,
-    visible,
+    showMinutes,
     status: AVAILABILITY_STATUS.AVAILABLE,
     origin,
     sourceReservationId,
@@ -71,8 +71,8 @@ function validateBatch({ minutes, dateText }) {
   return { total, when };
 }
 
-/** إضافة دفعة دقائق جديدة بسجل مستقل (visible: هل تظهر للعملاء في الموقع) */
-export async function addAvailability({ minutes, dateText, notes, visible = true }) {
+/** إضافة دفعة دقائق جديدة بسجل مستقل (showMinutes: هل يرى العميل عدد الدقائق المتاحة في الموقع) */
+export async function addAvailability({ minutes, dateText, notes, showMinutes = false }) {
   const { total, when } = validateBatch({ minutes, dateText });
 
   const ref = newAvailabilityRef();
@@ -85,7 +85,7 @@ export async function addAvailability({ minutes, dateText, notes, visible = true
         minutes: total,
         dateText: when,
         notes: (notes || '').trim(),
-        visible: visible !== false,
+        showMinutes: showMinutes === true,
       }),
     );
     writeNumber(tx, number);
@@ -94,11 +94,11 @@ export async function addAvailability({ minutes, dateText, notes, visible = true
 }
 
 /**
- * تعديل دفعة موجودة (الدقائق الإجمالية، الموعد، الملاحظات، الظهور للعملاء).
+ * تعديل دفعة موجودة (الدقائق الإجمالية، الموعد، الملاحظات، إظهار عدد الدقائق للعملاء).
  * المحجوز والمنجز لا يتغيّران، والمتاح = الإجمالي − المحجوز − المنجز.
  * تتم العملية داخل Transaction حتى لا تتعارض مع حجز يصل في نفس اللحظة.
  */
-export async function updateAvailability(id, { minutes, dateText, notes, visible = true }) {
+export async function updateAvailability(id, { minutes, dateText, notes, showMinutes = false }) {
   const { total, when } = validateBatch({ minutes, dateText });
   const ref = availabilityRef(id);
 
@@ -120,7 +120,7 @@ export async function updateAvailability(id, { minutes, dateText, notes, visible
       availableMinutes: available,
       dateText: when,
       notes: (notes || '').trim(),
-      visible: visible !== false,
+      showMinutes: showMinutes === true,
       status: computeAvailabilityStatus({
         totalMinutes: total,
         availableMinutes: available,

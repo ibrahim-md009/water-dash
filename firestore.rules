@@ -14,6 +14,13 @@ service cloud.firestore {
       return math.floor((math.floor((ts.toMillis() + 7200000) / 86400000) + 5) / 7);
     }
 
+    // إعدادات الموقع (settings/general). إن لم تُنشأ الوثيقة بعد نرجع خريطة فارغة
+    // بدل أن ترفض القواعد كل عملية (وكانت سبب «ليست لديك صلاحية» عند التسجيل).
+    function siteSettings() {
+      let path = /databases/$(database)/documents/settings/general;
+      return exists(path) ? get(path).data : {};
+    }
+
     // دقائق العميل المستهلكة قبل هذه العملية (تُصفَّر إن بدأ أسبوع جديد)
     function usedBefore(c) {
       return (c.get('lastBookingAt', null) is timestamp
@@ -61,7 +68,7 @@ service cloud.firestore {
 
       function isValidCustomerCreate(custId) {
         let a = request.resource.data;
-        let settings = get(/databases/$(database)/documents/settings/general).data;
+        let settings = siteSettings();
         return a.keys().hasOnly(['name', 'phone', 'weeklyMinutes', 'blocked', 'weekMinutes',
                                  'createdAt', 'updatedAt'])
           && a.keys().hasAll(['name', 'phone', 'weeklyMinutes', 'blocked', 'weekMinutes',
@@ -79,7 +86,7 @@ service cloud.firestore {
       function isCustomerBump() {
         let b = resource.data;
         let a = request.resource.data;
-        let settings = get(/databases/$(database)/documents/settings/general).data;
+        let settings = siteSettings();
         let limit = b.get('weeklyMinutes', settings.get('defaultWeeklyMinutes', 60));
         return a.diff(b).affectedKeys().hasOnly(['weekMinutes', 'lastBookingAt', 'updatedAt'])
           && b.blocked == false
@@ -110,7 +117,7 @@ service cloud.firestore {
 
       function isValidCustomerReservation() {
         let d = request.resource.data;
-        let settings = get(/databases/$(database)/documents/settings/general).data;
+        let settings = siteSettings();
         let availPath = /databases/$(database)/documents/availability/$(d.availabilityId);
         return d.keys().hasOnly(['name', 'phone', 'minutes', 'price', 'minutesPerCup',
                                  'pricePerCup', 'availabilityId', 'dateText', 'notes',
@@ -123,7 +130,7 @@ service cloud.firestore {
           && d.phone is string && d.phone.size() >= 5 && d.phone.size() <= 20
           && d.minutes is int && d.minutes > 0
           && d.price is number
-          && math.abs(d.price - (d.minutes * settings.pricePerCup / settings.minutesPerCup)) < 0.01
+          && math.abs(d.price - (d.minutes * settings.get('pricePerCup', 10) / settings.get('minutesPerCup', 20))) < 0.01
           && getAfter(availPath).data.availableMinutes ==
                get(availPath).data.availableMinutes - d.minutes
           && customerOk(d, settings);
